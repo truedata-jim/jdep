@@ -5,7 +5,7 @@
 # "make clean"     - Remove object and executable files
 
 # C compiler
-CC = gcc
+CC = g++
 
 CFLAGS = -g
 
@@ -13,7 +13,7 @@ CFLAGS = -g
 # The directory where built executables go
 BIN_DIR = ./bin
 
-DIRS = $(BIN_DIR) 
+DIRS = $(BIN_DIR)
 
 all: jdep touchp
 
@@ -24,8 +24,8 @@ touchp: $(BIN_DIR) $(BIN_DIR)/touchp
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
-$(BIN_DIR)/jdep: jdep.c
-	$(CC) $(CFLAGS) -o $@ jdep.c
+$(BIN_DIR)/jdep: jdep.cpp
+	$(CC) $(CFLAGS) -o $@ jdep.cpp
 
 $(BIN_DIR)/touchp: touchp.sh
 	cp touchp.sh $@

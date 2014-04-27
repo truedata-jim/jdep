@@ -35,9 +35,7 @@ typedef unsigned char   byte;           /*  8-bit number */
 typedef unsigned short  word;           /* 16-bit number */
 typedef unsigned long   longword;       /* 32-bit number */
 
-typedef int     bool;
-#define TRUE    1
-#define FALSE   0
+#define false   0
 
 #define FREE(p)    free(p)
 #define ALLOC(n)   malloc(n)
@@ -47,10 +45,10 @@ typedef int     bool;
 
 #define USAGE "usage: jdep -a [-e PACKAGE] [-i PACKAGE] -h [-c CPATH] [-d DPATH] [-j JPATH] files...\n"
 
-bool LittleEndian = FALSE;
-char *ClassRoot = "";
-char *DepRoot = "";
-char *JavaRoot = "";
+bool LittleEndian = false;
+const char *ClassRoot = "";
+const char *DepRoot = "";
+const char *JavaRoot = "";
 
 typedef struct PackageInfo {
     char *name;
@@ -230,19 +228,19 @@ build_constant_utf8_info(char *str)
 }
 
   static PackageInfo *
-buildPackageInfo(char *name, PackageInfo *next)
+buildPackageInfo(const char *name, PackageInfo *next)
 {
     char *pathName = TYPE_ALLOC_MULTI(char, strlen(name) + 2);
     PackageInfo *package = TYPE_ALLOC(PackageInfo);
-    bool slashFlag = FALSE;
+    bool slashFlag = false;
     package->name = pathName;
     while (*name) {
         if (*name == '.') {
             *pathName++ = '/';
-            slashFlag = TRUE;
+            slashFlag = true;
         } else {
             *pathName++ = *name;
-            slashFlag = FALSE;
+            slashFlag = false;
         }
         ++name;
     }
@@ -256,7 +254,7 @@ buildPackageInfo(char *name, PackageInfo *next)
 }
 
   static void
-excludePackage(char *name)
+excludePackage(const char *name)
 {
     ExcludedPackages = buildPackageInfo(name, ExcludedPackages);
 }
@@ -484,12 +482,12 @@ includePackage(char *name)
 isIncludedClass(char *name)
 {
     if (matchPackage(name, ExcludedPackages)) {
-        return FALSE;
+        return false;
     }
     if (IncludedPackages) {
         return matchPackage(name, IncludedPackages);
     } else {
-        return TRUE;
+        return true;
     }
 }
 
@@ -498,11 +496,11 @@ matchPackage(char *name, PackageInfo *packages)
 {
     while (packages) {
         if (strncmp(name, packages->name, packages->nameLength) == 0) {
-            return TRUE;
+            return true;
         }
         packages = packages->next;
     }
-    return FALSE;
+    return false;
 }
 
   static bool
@@ -518,18 +516,18 @@ mkdirPath(char *path)
             closedir(dyr);
         } else if (mkdir(path, S_IRWXU) < 0) {
             *slashptr = '/';
-            return TRUE;
+            return true;
         }
         *slashptr = '/';
         if (slashptr[1] == '\0') {
             /* Just ignore a trailing slash */
-            return FALSE;
+            return false;
         }
     }
     if (mkdir(path, S_IRWXU) < 0) {
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -794,7 +792,7 @@ main(int argc, char *argv[])
 {
     int i;
     char *p;
-    bool excludeLibraryPackages = TRUE;
+    bool excludeLibraryPackages = true;
 
     testEndianism();
 
@@ -802,7 +800,7 @@ main(int argc, char *argv[])
         if (argv[i][0] == '-') {
             switch (argv[i][1]) {
                 case 'a':
-                    excludeLibraryPackages = FALSE;
+                    excludeLibraryPackages = false;
                     break;
                 case 'c':
                     if (argv[i][2]) {
@@ -870,7 +868,7 @@ main(int argc, char *argv[])
                 excludePackage("java");
                 excludePackage("javax");
                 excludePackage("com.sun");
-                excludeLibraryPackages = FALSE;
+                excludeLibraryPackages = false;
             }
             analyzeClassFile(argv[i]);
         }
