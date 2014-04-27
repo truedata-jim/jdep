@@ -108,9 +108,6 @@ typedef const char* const_str;
 
 typedef set<string> Dependencies;
 
-int scanElementValue(uint8_t **bufptr, classFile *cf, Dependencies& deps, int depCount);
-int findDeps(char *name, Dependencies& deps, int depCount);
-int findDepsInFile(char *target, classFile *cf, Dependencies& deps, int depCount);
 FILE *fopenPath(char *path);
 bool isIncludedClass(char *name);
 bool matchPackage(char *name, PackageInfo *packages);
@@ -126,14 +123,36 @@ uint16_t readWord(FILE *fyle);
 void skipWordArray(FILE *fyle, int length);
 void reverseBytes(char *data, int length);
 
-
-int addDep(const char *name, Dependencies& deps, int depCount)
+class ClassFileAnalyzer
 {
-    deps.insert(name);
-    return deps.size();
+public:
+    ClassFileAnalyzer() {}
+
+    void analyzeClassFile(char *name);
+
+private:
+    bool addDep(const char *name);
+        // Adds name to the set of known dependencies.
+        // Returns true if this is a new dependency.
+
+    void findDeps(char *name);
+    void findDepsInFile(char *target, classFile *cf);
+
+    void scanAnnotation(uint8_t **bufptr, classFile *cf);
+    void scanElementValue(uint8_t **bufptr, classFile *cf);
+
+private:
+    Dependencies mDeps;
+};
+
+bool ClassFileAnalyzer::addDep(const char *name)
+{
+    int before = mDeps.size();
+    mDeps.insert(name);
+    return before != mDeps.size();
 }
 
-void analyzeClassFile(char *name)
+void ClassFileAnalyzer::analyzeClassFile(char *name)
 {
     FILE *outfyle;
     char outfilename[1000];
@@ -155,14 +174,13 @@ void analyzeClassFile(char *name)
         name += strlen(ClassRoot);
     }
 
-    Dependencies deps;
-    int depCount = findDeps(name, deps, 0);
+    findDeps(name);
 
     snprintf(outfilename, sizeof(outfilename), "%s%s.d", DepRoot, name);
     outfyle = fopenPath(outfilename);
     if (outfyle) {
         fprintf(outfyle, "%s%s.class: \\\n", ClassRoot, name);
-        for (Dependencies::iterator it=deps.begin(); it!=deps.end(); ++it)
+        for (Dependencies::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
         {
             const char* dep = it->c_str();
             if (index(dep, '$') == NULL) {
@@ -243,7 +261,7 @@ void excludePackage(const char *name)
     ExcludedPackages = buildPackageInfo(name, ExcludedPackages);
 }
 
-int findDeps(char *name, Dependencies& deps, int depCount)
+void ClassFileAnalyzer::findDeps(char *name)
 {
     FILE *infyle;
     char infilename[1000];
@@ -251,14 +269,12 @@ int findDeps(char *name, Dependencies& deps, int depCount)
     snprintf(infilename, sizeof(infilename), "%s%s.class", ClassRoot, name);
     infyle = fopen(infilename, "rb");
     if (infyle) {
-        depCount = findDepsInFile(name, readClassFile(infyle, infilename),
-                                  deps, depCount);
+        findDepsInFile(name, readClassFile(infyle, infilename));
         fclose(infyle);
     } else {
         fprintf(stderr, "unable to open class file %s", infilename);
         exit(1);
     }
-    return depCount;
 }
 
 uint8_t decodeByte(uint8_t **bufptr)
@@ -314,7 +330,7 @@ char * getClassName(classFile *cf, int index)
     return NULL;
 }
 
-int scanAnnotation(uint8_t **bufptr, classFile *cf, Dependencies& deps, int depCount)
+void ClassFileAnalyzer::scanAnnotation(uint8_t **bufptr, classFile *cf)
 {
     int i;
 
@@ -322,17 +338,16 @@ int scanAnnotation(uint8_t **bufptr, classFile *cf, Dependencies& deps, int depC
 
     char *name = getClassName(cf, type_index);
     if (isIncludedClass(name)) {
-        depCount = addDep(name, deps, depCount);
+        addDep(name);
     }
     int num_element_value_pairs = decodeWord(bufptr);
     for (i = 0; i < num_element_value_pairs; ++i) {
         int element_name_index = decodeWord(bufptr);
-        depCount = scanElementValue(bufptr, cf, deps, depCount);
+        scanElementValue(bufptr, cf);
     }
-    return depCount;
 }
 
-int scanElementValue(uint8_t **bufptr, classFile *cf, Dependencies& deps, int depCount)
+void ClassFileAnalyzer::scanElementValue(uint8_t **bufptr, classFile *cf)
 {
     uint8_t tag = decodeByte(bufptr);
     switch (tag) {
@@ -360,29 +375,28 @@ int scanElementValue(uint8_t **bufptr, classFile *cf, Dependencies& deps, int de
             char *name = getClassName(cf, type_name_index);
             int const_name_index = decodeWord(bufptr);
             if (isIncludedClass(name)) {
-                depCount = addDep(name, deps, depCount);
+                addDep(name);
             }
             break;
         }
         case '@': {
-            depCount = scanAnnotation(bufptr, cf, deps, depCount);
+            scanAnnotation(bufptr, cf);
             break;
         }
         case '[': {
             int num_values = decodeWord(bufptr);
             int i;
             for (i = 0; i < num_values; ++i) {
-                depCount = scanElementValue(bufptr, cf, deps, depCount);
+                scanElementValue(bufptr, cf);
             }
             break;
         }
         default:
             break;
     }
-    return depCount;
 }
 
-int findDepsInFile(char *target, classFile *cf, Dependencies& deps, int depCount)
+void ClassFileAnalyzer::findDepsInFile(char *target, classFile *cf)
 {
     int i;
 
@@ -399,21 +413,20 @@ int findDepsInFile(char *target, classFile *cf, Dependencies& deps, int depCount
                                 /* It's one of target's inner classes, so we
                                    depend on whatever *it* depends on and thus
                                    we need to recurse. */
-                            int oldDepCount = depCount;
-                            depCount = addDep(name, deps, depCount);
-                            if (oldDepCount != depCount) {
-                                depCount = findDeps(name, deps, depCount);
+                            bool added = addDep(name);
+                            if (added) {
+                                findDeps(name);
                             }
                         } else {
                                 /* It's somebody else's inner class, so we
                                    depend on its outer class source file */
                             *dollar = '\0';
-                            depCount = addDep(name, deps, depCount);
+                            addDep(name);
                             *dollar = '$';
                         }
                     } else {
                         /* It's a regular class */
-                        depCount = addDep(name, deps, depCount);
+                        addDep(name);
                     }
                 }
             }
@@ -428,12 +441,11 @@ int findDepsInFile(char *target, classFile *cf, Dependencies& deps, int depCount
             uint8_t *info = att->info;
             int num_annotations = decodeWord(&info);
             for (i = 0; i < num_annotations; ++i) {
-                depCount = scanAnnotation(&info, cf, deps, depCount);
+                scanAnnotation(&info, cf);
             }
         }
         att = att->next;
     }
-    return depCount;
 }
 
 FILE * fopenPath(char *path)
@@ -749,6 +761,8 @@ int main(int argc, char *argv[])
 
     testEndianism();
 
+    ClassFileAnalyzer analyzer;
+
     for (i = 1; i < argc; ++i) {
         if (argv[i][0] == '-') {
             switch (argv[i][1]) {
@@ -823,7 +837,7 @@ int main(int argc, char *argv[])
                 excludePackage("com.sun");
                 excludeLibraryPackages = false;
             }
-            analyzeClassFile(argv[i]);
+            analyzer.analyzeClassFile(argv[i]);
         }
     }
     exit(0);
