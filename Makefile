@@ -35,3 +35,9 @@ $(BIN_DIR)/touchp: touchp.sh
 
 clean:
 	rm -rf $(BIN_DIR)/jdep $(BIN_DIR)/touchp
+
+DEVROOT = ~/RedSeal/badger_exp
+
+test:
+	jdep -d testdata/deps -c $(DEVROOT)/test-classes/com -j $(DEVROOT)/server/test/com \
+		$(DEVROOT)/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
