@@ -15,7 +15,7 @@ BIN_DIR = ./bin
 
 DIRS = $(BIN_DIR)
 
-all: jdep touchp
+all: jdep touchp test
 
 jdep: $(DIRS) $(BIN_DIR)/jdep
 
@@ -38,6 +38,6 @@ clean:
 
 DEVROOT = ~/RedSeal/badger_exp
 
-test:
+test: jdep
 	jdep -d testdata/deps -c $(DEVROOT)/test-classes/com -j $(DEVROOT)/server/test/com \
 		$(DEVROOT)/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
