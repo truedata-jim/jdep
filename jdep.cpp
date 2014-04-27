@@ -40,8 +40,6 @@
 using std::string;
 using std::set;
 
-typedef set<string> StringSet;
-
 #define FREE(p)    free(p)
 #define ALLOC(n)   malloc(n)
 
@@ -108,9 +106,11 @@ struct constant_utf8_info {
 
 typedef const char* const_str;
 
-int scanElementValue(uint8_t **bufptr, classFile *cf, const_str deps[], int depCount);
-int findDeps(char *name, const_str deps[], int depCount);
-int findDepsInFile(char *target, classFile *cf, const_str deps[], int depCount);
+typedef set<string> Dependencies;
+
+int scanElementValue(uint8_t **bufptr, classFile *cf, Dependencies& deps, int depCount);
+int findDeps(char *name, Dependencies& deps, int depCount);
+int findDepsInFile(char *target, classFile *cf, Dependencies& deps, int depCount);
 FILE *fopenPath(char *path);
 bool isIncludedClass(char *name);
 bool matchPackage(char *name, PackageInfo *packages);
@@ -127,35 +127,16 @@ void skipWordArray(FILE *fyle, int length);
 void reverseBytes(char *data, int length);
 
 
-class Dependencies
+int addDep(const char *name, Dependencies& deps, int depCount)
 {
-public:
-    Dependencies();
-
-    int Add(const string& dep) { mRep.insert(dep); return mRep.size(); }
-
-private:
-    set<string> mRep;
-};
-
-int addDep(const char *name, const_str deps[], int depCount)
-{
-    int i;
-    for (i = 0; i < depCount; ++i) {
-        if (strcmp(name, deps[i]) == 0) {
-            return depCount;
-        }
-    }
-    deps[depCount++] = strdup(name);
-    return depCount;
+    deps.insert(name);
+    return deps.size();
 }
 
 void analyzeClassFile(char *name)
 {
     FILE *outfyle;
     char outfilename[1000];
-    const_str deps[10000];
-    int depCount;
     int i;
 
     char *match = strstr(name, ".class");
@@ -174,15 +155,18 @@ void analyzeClassFile(char *name)
         name += strlen(ClassRoot);
     }
 
-    depCount = findDeps(name, deps, 0);
+    Dependencies deps;
+    int depCount = findDeps(name, deps, 0);
 
     snprintf(outfilename, sizeof(outfilename), "%s%s.d", DepRoot, name);
     outfyle = fopenPath(outfilename);
     if (outfyle) {
         fprintf(outfyle, "%s%s.class: \\\n", ClassRoot, name);
-        for (i = 0; i < depCount; ++i) {
-            if (index(deps[i], '$') == NULL) {
-                fprintf(outfyle, "  %s%s.java\\\n", JavaRoot, deps[i]);
+        for (Dependencies::iterator it=deps.begin(); it!=deps.end(); ++it)
+        {
+            const char* dep = it->c_str();
+            if (index(dep, '$') == NULL) {
+                fprintf(outfyle, "  %s%s.java\\\n", JavaRoot, dep);
             }
         }
         fprintf(outfyle, "\n");
@@ -259,7 +243,7 @@ void excludePackage(const char *name)
     ExcludedPackages = buildPackageInfo(name, ExcludedPackages);
 }
 
-int findDeps(char *name, const_str deps[], int depCount)
+int findDeps(char *name, Dependencies& deps, int depCount)
 {
     FILE *infyle;
     char infilename[1000];
@@ -330,7 +314,7 @@ char * getClassName(classFile *cf, int index)
     return NULL;
 }
 
-int scanAnnotation(uint8_t **bufptr, classFile *cf, const_str deps[], int depCount)
+int scanAnnotation(uint8_t **bufptr, classFile *cf, Dependencies& deps, int depCount)
 {
     int i;
 
@@ -348,7 +332,7 @@ int scanAnnotation(uint8_t **bufptr, classFile *cf, const_str deps[], int depCou
     return depCount;
 }
 
-int scanElementValue(uint8_t **bufptr, classFile *cf, const_str deps[], int depCount)
+int scanElementValue(uint8_t **bufptr, classFile *cf, Dependencies& deps, int depCount)
 {
     uint8_t tag = decodeByte(bufptr);
     switch (tag) {
@@ -398,7 +382,7 @@ int scanElementValue(uint8_t **bufptr, classFile *cf, const_str deps[], int depC
     return depCount;
 }
 
-int findDepsInFile(char *target, classFile *cf, const_str deps[], int depCount)
+int findDepsInFile(char *target, classFile *cf, Dependencies& deps, int depCount)
 {
     int i;
 
