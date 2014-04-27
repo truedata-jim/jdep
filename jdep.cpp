@@ -119,7 +119,6 @@ attribute_info *readMethods(FILE *fyle, int count, attribute_info *atts);
 uint16_t readWord(FILE *fyle);
 void skipWordArray(FILE *fyle, int length);
 void reverseBytes(char *data, int length);
-string PackageToPath(const string& name);
 
 class ClassFileAnalyzer
 {
@@ -144,6 +143,8 @@ private:
     void scanElementValue(uint8_t **bufptr, classFile *cf);
 
     bool isIncludedClass(const string& name) const;
+
+    static string PackageToPath(const string& name);
 
 private:
     StringSet mDeps;
@@ -237,7 +238,7 @@ constant_utf8_info * build_constant_utf8_info(char *str)
     return result;
 }
 
-string PackageToPath(const string& name)
+string ClassFileAnalyzer::PackageToPath(const string& name)
 {
     string pathName(name);
     std::replace(pathName.begin(), pathName.end(), '.', '/');
