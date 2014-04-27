@@ -77,15 +77,6 @@ struct attribute_info {
     uint8_t *info;
 };
 
-struct classFile {
-    uint16_t constant_pool_count;
-    cp_info **constant_pool;
-    attribute_info *attributes;
-};
-
-#define LONG_TAG ((cp_info *) -1)
-
-
 struct constant_class_info {
     int tag;            /* CONSTANT_Class */
     uint16_t name_index;
@@ -96,12 +87,69 @@ struct constant_utf8_info {
     char *str;
 };
 
+class ClassFileAnalyzer;
+
+class ClassFile
+{
+public:
+    ClassFile(const char* filename);
+
+    const char* getString(int index) const
+    {
+        cp_info* cp = mConstantPool[index];
+        cp = mConstantPool[index];
+        if (cp->tag == CONSTANT_Utf8) {
+            const char* name = ((constant_utf8_info *) cp)->str;
+            return name;
+        }
+        return NULL;
+    }
+
+    const char* getClassName(int index) const
+    {
+        cp_info *cp = mConstantPool[index];
+        if (cp == NULL) {
+            return NULL;
+        } else if (cp->tag == CONSTANT_Class) {
+            constant_class_info *classInfo = (constant_class_info *) cp;
+            return getString(classInfo->name_index);
+        } else if (cp->tag == CONSTANT_Utf8) {
+            char *name = ((constant_utf8_info *) cp)->str;
+            if (name[0] == 'L') {
+                char *result = strdup(name + 1);
+                char *s = result;
+                while (*s) {
+                    if (*s == ';') {
+                        *s = '\0';
+                        break;
+                    }
+                    ++s;
+                }
+                return result;
+            }
+        }
+        return NULL;
+    }
+
+    void findDepsInFile(const char* target, ClassFileAnalyzer& analyzer);
+
+    void scanAnnotation(uint8_t **bufptr, ClassFileAnalyzer& analyzer);
+    void scanElementValue(uint8_t **bufptr, ClassFileAnalyzer& analyzer);
+
+private:
+    uint16_t mConstantPoolCount;
+    cp_info** mConstantPool;
+    attribute_info* mAttributes;
+};
+
+#define LONG_TAG ((cp_info *) -1)
+
+
 FILE *fopenPath(char *path);
 bool mkdirPath(char *path);
 uint8_t *readByteArray(FILE *fyle, int length);
-classFile *readClassFile(FILE *fyle, char *filename);
-cp_info **readConstantPool(FILE *fyle, char *filename, int count);
-cp_info *readConstantPoolInfo(FILE *fyle, char *filename);
+cp_info **readConstantPool(FILE *fyle, const char *filename, int count);
+cp_info *readConstantPoolInfo(FILE *fyle, const char *filename);
 attribute_info *readFields(FILE *fyle, int count, attribute_info *atts);
 uint32_t readLong(FILE *fyle);
 attribute_info *readMethods(FILE *fyle, int count, attribute_info *atts);
@@ -120,20 +168,16 @@ public:
 
     void excludePackage(const string& name) {mExcludedPackages.insert(PackageToPath(name)); }
 
-private:
-    typedef set<string> StringSet;
-
     bool addDep(const char *name);
         // Adds name to the set of known dependencies.
         // Returns true if this is a new dependency.
 
-    void findDeps(char *name);
-    void findDepsInFile(char *target, classFile *cf);
-
-    void scanAnnotation(uint8_t **bufptr, classFile *cf);
-    void scanElementValue(uint8_t **bufptr, classFile *cf);
-
     bool isIncludedClass(const string& name) const;
+
+    void findDeps(const char *name);
+
+private:
+    typedef set<string> StringSet;
 
     static string PackageToPath(const string& name);
 
@@ -205,16 +249,6 @@ attribute_info * build_attribute_info(uint16_t attribute_name_index, long attrib
     return result;
 }
 
-classFile * build_classFile(uint16_t constant_pool_count, cp_info **constant_pool,
-                attribute_info *attributes)
-{
-    classFile *result = TYPE_ALLOC(classFile);
-    result->constant_pool_count = constant_pool_count;
-    result->constant_pool = constant_pool;
-    result->attributes = attributes;
-    return result;
-}
-
 constant_class_info * build_constant_class_info(uint16_t name_index)
 {
     constant_class_info *result = TYPE_ALLOC(constant_class_info);
@@ -240,20 +274,15 @@ string ClassFileAnalyzer::PackageToPath(const string& name)
     return pathName;
 }
 
-void ClassFileAnalyzer::findDeps(char *name)
+void ClassFileAnalyzer::findDeps(const char *name)
 {
     FILE *infyle;
     char infilename[1000];
 
     snprintf(infilename, sizeof(infilename), "%s%s.class", ClassRoot, name);
-    infyle = fopen(infilename, "rb");
-    if (infyle) {
-        findDepsInFile(name, readClassFile(infyle, infilename));
-        fclose(infyle);
-    } else {
-        fprintf(stderr, "unable to open class file %s", infilename);
-        exit(1);
-    }
+    ClassFile classFile(infilename);
+    classFile.findDepsInFile(name, *this);
+
 }
 
 uint8_t decodeByte(uint8_t **bufptr)
@@ -272,43 +301,6 @@ uint16_t decodeWord(uint8_t **bufptr)
     return result;
 }
 
-char * getString(classFile *cf, int index)
-{
-    cp_info *cp = cf->constant_pool[index];
-    cp = cf->constant_pool[index];
-    if (cp->tag == CONSTANT_Utf8) {
-        char *name = ((constant_utf8_info *) cp)->str;
-        return name;
-    }
-    return NULL;
-}
-
-char * getClassName(classFile *cf, int index)
-{
-    cp_info *cp = cf->constant_pool[index];
-    if (cp == NULL) {
-        return NULL;
-    } else if (cp->tag == CONSTANT_Class) {
-        constant_class_info *classInfo = (constant_class_info *) cp;
-        return getString(cf, classInfo->name_index);
-    } else if (cp->tag == CONSTANT_Utf8) {
-        char *name = ((constant_utf8_info *) cp)->str;
-        if (name[0] == 'L') {
-            char *result = strdup(name + 1);
-            char *s = result;
-            while (*s) {
-                if (*s == ';') {
-                    *s = '\0';
-                    break;
-                }
-                ++s;
-            }
-            return result;
-        }
-    }
-    return NULL;
-}
-
 bool ClassFileAnalyzer::matchPackage(const string& name, const StringSet& packages)
 {
     return packages.find(name) != packages.end();
@@ -323,24 +315,24 @@ bool ClassFileAnalyzer::isIncludedClass(const string& name) const
     return true;
 }
 
-void ClassFileAnalyzer::scanAnnotation(uint8_t **bufptr, classFile *cf)
+void ClassFile::scanAnnotation(uint8_t **bufptr, ClassFileAnalyzer& analyzer)
 {
     int i;
 
     int type_index = decodeWord(bufptr);
 
-    char *name = getClassName(cf, type_index);
-    if (isIncludedClass(name)) {
-        addDep(name);
+    const char *name = getClassName(type_index);
+    if (analyzer.isIncludedClass(name)) {
+        analyzer.addDep(name);
     }
     int num_element_value_pairs = decodeWord(bufptr);
     for (i = 0; i < num_element_value_pairs; ++i) {
         int element_name_index = decodeWord(bufptr);
-        scanElementValue(bufptr, cf);
+        scanElementValue(bufptr, analyzer);
     }
 }
 
-void ClassFileAnalyzer::scanElementValue(uint8_t **bufptr, classFile *cf)
+void ClassFile::scanElementValue(uint8_t **bufptr, ClassFileAnalyzer& analyzer)
 {
     uint8_t tag = decodeByte(bufptr);
     switch (tag) {
@@ -365,22 +357,22 @@ void ClassFileAnalyzer::scanElementValue(uint8_t **bufptr, classFile *cf)
         }
         case 'e': {
             int type_name_index = decodeWord(bufptr);
-            char *name = getClassName(cf, type_name_index);
+            const char *name = getClassName(type_name_index);
             int const_name_index = decodeWord(bufptr);
-            if (isIncludedClass(name)) {
-                addDep(name);
+            if (analyzer.isIncludedClass(name)) {
+                analyzer.addDep(name);
             }
             break;
         }
         case '@': {
-            scanAnnotation(bufptr, cf);
+            scanAnnotation(bufptr, analyzer);
             break;
         }
         case '[': {
             int num_values = decodeWord(bufptr);
             int i;
             for (i = 0; i < num_values; ++i) {
-                scanElementValue(bufptr, cf);
+                scanElementValue(bufptr, analyzer);
             }
             break;
         }
@@ -389,15 +381,13 @@ void ClassFileAnalyzer::scanElementValue(uint8_t **bufptr, classFile *cf)
     }
 }
 
-void ClassFileAnalyzer::findDepsInFile(char *target, classFile *cf)
+void ClassFile::findDepsInFile(const char* target, ClassFileAnalyzer& analyzer)
 {
-    int i;
-
-    for (i = 0 ; i < cf->constant_pool_count; ++i) {
-        cp_info *cp = cf->constant_pool[i];
+    for (int i=0; i < mConstantPoolCount; ++i) {
+        cp_info* cp = mConstantPool[i];
         if (cp && cp->tag == CONSTANT_Class) {
-            char *name = getClassName(cf, i);
-            if (isIncludedClass(name)) {
+            const char* name = getClassName(i);
+            if (analyzer.isIncludedClass(name)) {
                 if (name[0] != '[') { /* Skip array classes */
                     char *dollar = index(name, '$');
                     if (dollar) {
@@ -406,35 +396,35 @@ void ClassFileAnalyzer::findDepsInFile(char *target, classFile *cf)
                                 /* It's one of target's inner classes, so we
                                    depend on whatever *it* depends on and thus
                                    we need to recurse. */
-                            bool added = addDep(name);
+                            bool added = analyzer.addDep(name);
                             if (added) {
-                                findDeps(name);
+                                analyzer.findDeps(name);
                             }
                         } else {
                                 /* It's somebody else's inner class, so we
                                    depend on its outer class source file */
                             *dollar = '\0';
-                            addDep(name);
+                            analyzer.addDep(name);
                             *dollar = '$';
                         }
                     } else {
                         /* It's a regular class */
-                        addDep(name);
+                        analyzer.addDep(name);
                     }
                 }
             }
         }
     }
 
-    attribute_info *att = cf->attributes;
+    attribute_info *att = mAttributes;
     while (att != NULL) {
-        char *name = getString(cf, att->attribute_name_index);
+        const char *name = getString(att->attribute_name_index);
         if (strcmp(name, "RuntimeVisibleAnnotations") == 0) {
             int i;
             uint8_t *info = att->info;
             int num_annotations = decodeWord(&info);
             for (i = 0; i < num_annotations; ++i) {
-                scanAnnotation(&info, cf);
+                scanAnnotation(&info, analyzer);
             }
         }
         att = att->next;
@@ -513,33 +503,43 @@ uint8_t * readByteArray(FILE *fyle, int length)
     return result;
 }
 
-classFile * readClassFile(FILE *fyle, char *filename)
+ClassFile::ClassFile(const char* infilename)
+: mConstantPoolCount(0)
+, mConstantPool(0)
+, mAttributes(0)
 {
-    uint16_t constant_pool_count;
-    cp_info **constant_pool;
-    attribute_info *atts = NULL;
+    FILE* fyle = fopen(infilename, "rb");
+    if (!fyle)
+    {
+        fprintf(stderr, "unable to open class file %s", infilename);
+        exit(1);
+    }
 
     readLong(fyle); /* magic */
     readWord(fyle); /* minor_version */
     readWord(fyle); /* major_version */
-    constant_pool_count = readWord(fyle);
-    constant_pool = readConstantPool(fyle, filename, constant_pool_count);
+    mConstantPoolCount = readWord(fyle);
+
+    // TODO: There may be a bug here with infilename.
+    // In my refactoring I think I collapsed two different versions of the filename
+    // down to one version, but they needed to stay separate.
+    mConstantPool = readConstantPool(fyle, infilename, mConstantPoolCount);
     readWord(fyle); /* access_flags */
     readWord(fyle); /* this_class */
     readWord(fyle); /* super_class */
     uint16_t interfaces_count = readWord(fyle);
     skipWordArray(fyle, interfaces_count); /* interfaces */
     uint16_t fields_count = readWord(fyle);
-    atts = readFields(fyle, fields_count, atts); /* fields */
+    mAttributes = readFields(fyle, fields_count, mAttributes); /* fields */
     uint16_t methods_count = readWord(fyle);
-    atts = readMethods(fyle, methods_count, atts); /* methods */
+    mAttributes = readMethods(fyle, methods_count, mAttributes); /* methods */
     uint16_t attributes_count = readWord(fyle);
-    atts = readAttributes(fyle, attributes_count, atts);
+    mAttributes = readAttributes(fyle, attributes_count, mAttributes);
 
-    return build_classFile(constant_pool_count, constant_pool, atts);
+    fclose(fyle);
 }
 
-cp_info ** readConstantPool(FILE *fyle, char *filename, int count)
+cp_info** readConstantPool(FILE *fyle, const char *filename, int count)
 {
     cp_info **result = TYPE_ALLOC_MULTI(cp_info *, count);
     int i;
@@ -554,7 +554,7 @@ cp_info ** readConstantPool(FILE *fyle, char *filename, int count)
     return result;
 }
 
-cp_info * readConstantPoolInfo(FILE *fyle, char *filename)
+cp_info * readConstantPoolInfo(FILE *fyle, const char *filename)
 {
     uint8_t tag = readByte(fyle);
     switch (tag) {

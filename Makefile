@@ -25,7 +25,7 @@ $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
 $(BIN_DIR)/jdep: jdep.cpp
-	$(CC) $(CFLAGS) -o $@ jdep.cpp
+	$(CC) $(CFLAGS) -ferror-limit=6 -o $@ jdep.cpp
 
 $(BIN_DIR)/touchp: touchp.sh
 	cp touchp.sh $@
