@@ -50,11 +50,11 @@ const char *ClassRoot = "";
 const char *DepRoot = "";
 const char *JavaRoot = "";
 
-typedef struct PackageInfo {
+struct PackageInfo {
     char *name;
     int   nameLength;
     struct PackageInfo *next;
-} PackageInfo;
+};
 
 PackageInfo *ExcludedPackages = NULL;
 PackageInfo *IncludedPackages = NULL;
@@ -71,11 +71,11 @@ PackageInfo *IncludedPackages = NULL;
 #define CONSTANT_String                  8
 #define CONSTANT_Utf8                    1
 
-typedef struct attribute_info attribute_info;
-typedef struct classFile classFile;
-typedef struct cp_info cp_info;
-typedef struct constant_class_info constant_class_info;
-typedef struct constant_utf8_info constant_utf8_info;
+struct attribute_info;
+struct classFile;
+struct cp_info;
+struct constant_class_info;
+struct constant_utf8_info;
 
 struct classFile {
     word constant_pool_count;
@@ -130,8 +130,7 @@ static void skipWordArray(FILE *fyle, int length);
 static void reverseBytes(char *data, int length);
 
 
-  static int
-addDep(char *name, char *deps[], int depCount)
+int addDep(char *name, char *deps[], int depCount)
 {
     int i;
     for (i = 0; i < depCount; ++i) {
@@ -143,8 +142,7 @@ addDep(char *name, char *deps[], int depCount)
     return depCount;
 }
 
-  static void
-analyzeClassFile(char *name)
+void analyzeClassFile(char *name)
 {
     FILE *outfyle;
     char outfilename[1000];
@@ -186,8 +184,7 @@ analyzeClassFile(char *name)
     }
 }
 
-  static attribute_info *
-build_attribute_info(word attribute_name_index, long attribute_length,
+attribute_info * build_attribute_info(word attribute_name_index, long attribute_length,
                      byte *info, attribute_info *next)
 {
     attribute_info *result = TYPE_ALLOC(attribute_info);
@@ -198,8 +195,7 @@ build_attribute_info(word attribute_name_index, long attribute_length,
     return result;
 }
 
-  static classFile *
-build_classFile(word constant_pool_count, cp_info **constant_pool,
+classFile * build_classFile(word constant_pool_count, cp_info **constant_pool,
                 attribute_info *attributes)
 {
     classFile *result = TYPE_ALLOC(classFile);
@@ -209,8 +205,7 @@ build_classFile(word constant_pool_count, cp_info **constant_pool,
     return result;
 }
 
-  static constant_class_info *
-build_constant_class_info(word name_index)
+constant_class_info * build_constant_class_info(word name_index)
 {
     constant_class_info *result = TYPE_ALLOC(constant_class_info);
     result->tag = CONSTANT_Class;
@@ -218,8 +213,7 @@ build_constant_class_info(word name_index)
     return result;
 }
 
-  static constant_utf8_info *
-build_constant_utf8_info(char *str)
+constant_utf8_info * build_constant_utf8_info(char *str)
 {
     constant_utf8_info *result = TYPE_ALLOC(constant_utf8_info);
     result->tag = CONSTANT_Utf8;
@@ -227,8 +221,7 @@ build_constant_utf8_info(char *str)
     return result;
 }
 
-  static PackageInfo *
-buildPackageInfo(const char *name, PackageInfo *next)
+PackageInfo * buildPackageInfo(const char *name, PackageInfo *next)
 {
     char *pathName = TYPE_ALLOC_MULTI(char, strlen(name) + 2);
     PackageInfo *package = TYPE_ALLOC(PackageInfo);
@@ -253,14 +246,12 @@ buildPackageInfo(const char *name, PackageInfo *next)
     return package;
 }
 
-  static void
-excludePackage(const char *name)
+void excludePackage(const char *name)
 {
     ExcludedPackages = buildPackageInfo(name, ExcludedPackages);
 }
 
-  static int
-findDeps(char *name, char *deps[], int depCount)
+int findDeps(char *name, char *deps[], int depCount)
 {
     FILE *infyle;
     char infilename[1000];
@@ -278,8 +269,7 @@ findDeps(char *name, char *deps[], int depCount)
     return depCount;
 }
 
-  static byte
-decodeByte(byte **bufptr)
+byte decodeByte(byte **bufptr)
 {
     byte *buf = *bufptr;
     byte result = buf[0];
@@ -287,8 +277,7 @@ decodeByte(byte **bufptr)
     return result;
 }
 
-  static word
-decodeWord(byte **bufptr)
+word decodeWord(byte **bufptr)
 {
     byte *buf = *bufptr;
     word result = (buf[0] << 8) | buf[1];
@@ -296,8 +285,7 @@ decodeWord(byte **bufptr)
     return result;
 }
 
-  static char *
-getString(classFile *cf, int index)
+char * getString(classFile *cf, int index)
 {
     cp_info *cp = cf->constant_pool[index];
     cp = cf->constant_pool[index];
@@ -308,8 +296,7 @@ getString(classFile *cf, int index)
     return NULL;
 }
 
-  static char *
-getClassName(classFile *cf, int index)
+char * getClassName(classFile *cf, int index)
 {
     cp_info *cp = cf->constant_pool[index];
     if (cp == NULL) {
@@ -335,8 +322,7 @@ getClassName(classFile *cf, int index)
     return NULL;
 }
 
-  static int
-scanAnnotation(byte **bufptr, classFile *cf, char *deps[], int depCount)
+int scanAnnotation(byte **bufptr, classFile *cf, char *deps[], int depCount)
 {
     int i;
 
@@ -354,8 +340,7 @@ scanAnnotation(byte **bufptr, classFile *cf, char *deps[], int depCount)
     return depCount;
 }
 
-  static int
-scanElementValue(byte **bufptr, classFile *cf, char *deps[], int depCount)
+int scanElementValue(byte **bufptr, classFile *cf, char *deps[], int depCount)
 {
     byte tag = decodeByte(bufptr);
     switch (tag) {
@@ -405,8 +390,7 @@ scanElementValue(byte **bufptr, classFile *cf, char *deps[], int depCount)
     return depCount;
 }
 
-  static int
-findDepsInFile(char *target, classFile *cf, char *deps[], int depCount)
+int findDepsInFile(char *target, classFile *cf, char *deps[], int depCount)
 {
     int i;
 
@@ -460,8 +444,7 @@ findDepsInFile(char *target, classFile *cf, char *deps[], int depCount)
     return depCount;
 }
 
-  static FILE *
-fopenPath(char *path)
+FILE * fopenPath(char *path)
 {
     char *end = rindex(path, '/');
     if (end) {
@@ -472,14 +455,12 @@ fopenPath(char *path)
     return fopen(path, "w");
 }
 
-  static void
-includePackage(char *name)
+void includePackage(char *name)
 {
     IncludedPackages = buildPackageInfo(name, IncludedPackages);
 }
 
-  static bool
-isIncludedClass(char *name)
+bool isIncludedClass(char *name)
 {
     if (matchPackage(name, ExcludedPackages)) {
         return false;
@@ -491,8 +472,7 @@ isIncludedClass(char *name)
     }
 }
 
-  static bool
-matchPackage(char *name, PackageInfo *packages)
+bool matchPackage(char *name, PackageInfo *packages)
 {
     while (packages) {
         if (strncmp(name, packages->name, packages->nameLength) == 0) {
@@ -503,8 +483,7 @@ matchPackage(char *name, PackageInfo *packages)
     return false;
 }
 
-  static bool
-mkdirPath(char *path)
+bool mkdirPath(char *path)
 {
     char *slashptr = path;
     DIR *dyr;
@@ -531,8 +510,7 @@ mkdirPath(char *path)
     }
 }
 
-  static attribute_info *
-readAttributeInfo(FILE *fyle, attribute_info *atts)
+attribute_info * readAttributeInfo(FILE *fyle, attribute_info *atts)
 {
     word attribute_name_index = readWord(fyle);
     long attribute_length = readLong(fyle);
@@ -542,8 +520,7 @@ readAttributeInfo(FILE *fyle, attribute_info *atts)
                                 atts);
 }
 
-  static attribute_info *
-readAttributes(FILE *fyle, int count, attribute_info *atts)
+attribute_info * readAttributes(FILE *fyle, int count, attribute_info *atts)
 {
     int i;
     for (i = 0; i < count; ++i) {
@@ -552,16 +529,14 @@ readAttributes(FILE *fyle, int count, attribute_info *atts)
     return atts;
 }
 
-  static byte
-readByte(FILE *fyle)
+byte readByte(FILE *fyle)
 {
     byte result;
     fread((char *)&result, 1, 1, fyle);
     return result;
 }
 
-  static byte *
-readByteArray(FILE *fyle, int length)
+byte * readByteArray(FILE *fyle, int length)
 {
     byte *result = TYPE_ALLOC_MULTI(byte, length + 1);
     fread((char *)result, 1, length, fyle);
@@ -569,8 +544,7 @@ readByteArray(FILE *fyle, int length)
     return result;
 }
 
-  static classFile *
-readClassFile(FILE *fyle, char *filename)
+classFile * readClassFile(FILE *fyle, char *filename)
 {
     word constant_pool_count;
     cp_info **constant_pool;
@@ -596,8 +570,7 @@ readClassFile(FILE *fyle, char *filename)
     return build_classFile(constant_pool_count, constant_pool, atts);
 }
 
-  static cp_info **
-readConstantPool(FILE *fyle, char *filename, int count)
+cp_info ** readConstantPool(FILE *fyle, char *filename, int count)
 {
     cp_info **result = TYPE_ALLOC_MULTI(cp_info *, count);
     int i;
@@ -612,8 +585,7 @@ readConstantPool(FILE *fyle, char *filename, int count)
     return result;
 }
 
-  static cp_info *
-readConstantPoolInfo(FILE *fyle, char *filename)
+cp_info * readConstantPoolInfo(FILE *fyle, char *filename)
 {
     byte tag = readByte(fyle);
     switch (tag) {
@@ -676,8 +648,7 @@ readConstantPoolInfo(FILE *fyle, char *filename)
     return NULL;
 }
 
-  static longword
-readLong(FILE *fyle)
+longword readLong(FILE *fyle)
 {
     longword result;
     fread((char *)&result, 4, 1, fyle);
@@ -687,8 +658,7 @@ readLong(FILE *fyle)
     return result;
 }
 
-  static word
-readWord(FILE *fyle)
+word readWord(FILE *fyle)
 {
     word result;
     fread((char *)&result, 2, 1, fyle);
@@ -698,8 +668,7 @@ readWord(FILE *fyle)
     return result;
 }
 
-  static void
-reverseBytes(char *data, int length)
+void reverseBytes(char *data, int length)
 {
     char temp;
     int i;
@@ -711,8 +680,7 @@ reverseBytes(char *data, int length)
     }
 }
 
-  static char *
-savePath(char *path)
+char * savePath(char *path)
 {
     int len = strlen(path);
     if (path[len-1] == '/') {
@@ -726,8 +694,7 @@ savePath(char *path)
     }
 }
 
-  static attribute_info *
-readFieldInfo(FILE *fyle, attribute_info *atts)
+attribute_info * readFieldInfo(FILE *fyle, attribute_info *atts)
 {
     readWord(fyle); /* access_flags */
     readWord(fyle); /* name_index */
@@ -736,8 +703,7 @@ readFieldInfo(FILE *fyle, attribute_info *atts)
     return readAttributes(fyle, attributes_count, atts);
 }
 
-  static attribute_info *
-readFields(FILE *fyle, int count, attribute_info *atts)
+attribute_info * readFields(FILE *fyle, int count, attribute_info *atts)
 {
     int i;
     for (i=0; i<count; ++i) {
@@ -746,8 +712,7 @@ readFields(FILE *fyle, int count, attribute_info *atts)
     return atts;
 }
 
-  static attribute_info *
-readMethodInfo(FILE *fyle, attribute_info *atts)
+attribute_info * readMethodInfo(FILE *fyle, attribute_info *atts)
 {
     readWord(fyle); /* access_flags */
     readWord(fyle); /* name_index */
@@ -756,8 +721,7 @@ readMethodInfo(FILE *fyle, attribute_info *atts)
     return readAttributes(fyle, attributes_count, atts);
 }
 
-  static attribute_info *
-readMethods(FILE *fyle, int count, attribute_info *atts)
+attribute_info * readMethods(FILE *fyle, int count, attribute_info *atts)
 {
     int i;
     for (i = 0; i < count; ++i) {
@@ -766,8 +730,7 @@ readMethods(FILE *fyle, int count, attribute_info *atts)
     return atts;
 }
 
-  static void
-skipWordArray(FILE *fyle, int length)
+void skipWordArray(FILE *fyle, int length)
 {
     int i;
     for (i = 0; i < length; ++i) {
@@ -775,8 +738,7 @@ skipWordArray(FILE *fyle, int length)
     }
 }
 
-  static void
-testEndianism(void)
+void testEndianism(void)
 {
     union {
         word asWord;
@@ -787,8 +749,7 @@ testEndianism(void)
     LittleEndian = (tester.asBytes[0] == 1);
 }
 
-  int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     int i;
     char *p;
