@@ -34,6 +34,14 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+#include <string>
+#include <set>
+
+using std::string;
+using std::set;
+
+typedef set<string> StringSet;
+
 #define FREE(p)    free(p)
 #define ALLOC(n)   malloc(n)
 
@@ -98,9 +106,11 @@ struct constant_utf8_info {
     char *str;
 };
 
-int scanElementValue(uint8_t **bufptr, classFile *cf, char *deps[], int depCount);
-int findDeps(char *name, char *deps[], int depCount);
-int findDepsInFile(char *target, classFile *cf, char *deps[], int depCount);
+typedef const char* const_str;
+
+int scanElementValue(uint8_t **bufptr, classFile *cf, const_str deps[], int depCount);
+int findDeps(char *name, const_str deps[], int depCount);
+int findDepsInFile(char *target, classFile *cf, const_str deps[], int depCount);
 FILE *fopenPath(char *path);
 bool isIncludedClass(char *name);
 bool matchPackage(char *name, PackageInfo *packages);
@@ -117,7 +127,18 @@ void skipWordArray(FILE *fyle, int length);
 void reverseBytes(char *data, int length);
 
 
-int addDep(char *name, char *deps[], int depCount)
+class Dependencies
+{
+public:
+    Dependencies();
+
+    int Add(const string& dep) { mRep.insert(dep); return mRep.size(); }
+
+private:
+    set<string> mRep;
+};
+
+int addDep(const char *name, const_str deps[], int depCount)
 {
     int i;
     for (i = 0; i < depCount; ++i) {
@@ -133,7 +154,7 @@ void analyzeClassFile(char *name)
 {
     FILE *outfyle;
     char outfilename[1000];
-    char *deps[10000];
+    const_str deps[10000];
     int depCount;
     int i;
 
@@ -238,7 +259,7 @@ void excludePackage(const char *name)
     ExcludedPackages = buildPackageInfo(name, ExcludedPackages);
 }
 
-int findDeps(char *name, char *deps[], int depCount)
+int findDeps(char *name, const_str deps[], int depCount)
 {
     FILE *infyle;
     char infilename[1000];
@@ -309,7 +330,7 @@ char * getClassName(classFile *cf, int index)
     return NULL;
 }
 
-int scanAnnotation(uint8_t **bufptr, classFile *cf, char *deps[], int depCount)
+int scanAnnotation(uint8_t **bufptr, classFile *cf, const_str deps[], int depCount)
 {
     int i;
 
@@ -327,7 +348,7 @@ int scanAnnotation(uint8_t **bufptr, classFile *cf, char *deps[], int depCount)
     return depCount;
 }
 
-int scanElementValue(uint8_t **bufptr, classFile *cf, char *deps[], int depCount)
+int scanElementValue(uint8_t **bufptr, classFile *cf, const_str deps[], int depCount)
 {
     uint8_t tag = decodeByte(bufptr);
     switch (tag) {
@@ -377,7 +398,7 @@ int scanElementValue(uint8_t **bufptr, classFile *cf, char *deps[], int depCount
     return depCount;
 }
 
-int findDepsInFile(char *target, classFile *cf, char *deps[], int depCount)
+int findDepsInFile(char *target, classFile *cf, const_str deps[], int depCount)
 {
     int i;
 
