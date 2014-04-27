@@ -54,12 +54,6 @@ const char *ClassRoot = "";
 const char *DepRoot = "";
 const char *JavaRoot = "";
 
-struct PackageInfo {
-    char *name;
-    int   nameLength;
-    struct PackageInfo *next;
-};
-
 #define CONSTANT_Class                   7
 #define CONSTANT_Double                  6
 #define CONSTANT_Fieldref                9
@@ -102,12 +96,7 @@ struct constant_utf8_info {
     char *str;
 };
 
-typedef const char* const_str;
-
-typedef set<string> StringSet;
-
 FILE *fopenPath(char *path);
-bool matchPackage(const string& name, const StringSet& packages);
 bool mkdirPath(char *path);
 uint8_t *readByteArray(FILE *fyle, int length);
 classFile *readClassFile(FILE *fyle, char *filename);
@@ -132,6 +121,8 @@ public:
     void excludePackage(const string& name) {mExcludedPackages.insert(PackageToPath(name)); }
 
 private:
+    typedef set<string> StringSet;
+
     bool addDep(const char *name);
         // Adds name to the set of known dependencies.
         // Returns true if this is a new dependency.
@@ -145,6 +136,8 @@ private:
     bool isIncludedClass(const string& name) const;
 
     static string PackageToPath(const string& name);
+
+    static bool matchPackage(const string& name, const StringSet& packages);
 
 private:
     StringSet mDeps;
@@ -316,6 +309,11 @@ char * getClassName(classFile *cf, int index)
     return NULL;
 }
 
+bool ClassFileAnalyzer::matchPackage(const string& name, const StringSet& packages)
+{
+    return packages.find(name) != packages.end();
+}
+
 bool ClassFileAnalyzer::isIncludedClass(const string& name) const
 {
     if (matchPackage(name, mExcludedPackages))
@@ -452,11 +450,6 @@ FILE * fopenPath(char *path)
         *end = '/';
     }
     return fopen(path, "w");
-}
-
-bool matchPackage(const string& name, const StringSet& packages)
-{
-    return packages.find(name) != packages.end();
 }
 
 bool mkdirPath(char *path)
