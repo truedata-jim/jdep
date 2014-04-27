@@ -34,6 +34,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+#include <algorithm>
 #include <string>
 #include <set>
 
@@ -58,9 +59,6 @@ struct PackageInfo {
     int   nameLength;
     struct PackageInfo *next;
 };
-
-PackageInfo *ExcludedPackages = NULL;
-PackageInfo *IncludedPackages = NULL;
 
 #define CONSTANT_Class                   7
 #define CONSTANT_Double                  6
@@ -106,11 +104,10 @@ struct constant_utf8_info {
 
 typedef const char* const_str;
 
-typedef set<string> Dependencies;
+typedef set<string> StringSet;
 
 FILE *fopenPath(char *path);
-bool isIncludedClass(char *name);
-bool matchPackage(char *name, PackageInfo *packages);
+bool matchPackage(const string& name, const StringSet& packages);
 bool mkdirPath(char *path);
 uint8_t *readByteArray(FILE *fyle, int length);
 classFile *readClassFile(FILE *fyle, char *filename);
@@ -122,6 +119,7 @@ attribute_info *readMethods(FILE *fyle, int count, attribute_info *atts);
 uint16_t readWord(FILE *fyle);
 void skipWordArray(FILE *fyle, int length);
 void reverseBytes(char *data, int length);
+string PackageToPath(const string& name);
 
 class ClassFileAnalyzer
 {
@@ -129,6 +127,10 @@ public:
     ClassFileAnalyzer() {}
 
     void analyzeClassFile(char *name);
+
+    void includePackage(const string& name) {mIncludedPackages.insert(PackageToPath(name)); }
+
+    void excludePackage(const string& name) {mExcludedPackages.insert(PackageToPath(name)); }
 
 private:
     bool addDep(const char *name);
@@ -141,8 +143,12 @@ private:
     void scanAnnotation(uint8_t **bufptr, classFile *cf);
     void scanElementValue(uint8_t **bufptr, classFile *cf);
 
+    bool isIncludedClass(const string& name) const;
+
 private:
-    Dependencies mDeps;
+    StringSet mDeps;
+    StringSet mExcludedPackages;
+    StringSet mIncludedPackages;
 };
 
 bool ClassFileAnalyzer::addDep(const char *name)
@@ -180,7 +186,7 @@ void ClassFileAnalyzer::analyzeClassFile(char *name)
     outfyle = fopenPath(outfilename);
     if (outfyle) {
         fprintf(outfyle, "%s%s.class: \\\n", ClassRoot, name);
-        for (Dependencies::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
+        for (StringSet::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
         {
             const char* dep = it->c_str();
             if (index(dep, '$') == NULL) {
@@ -231,34 +237,13 @@ constant_utf8_info * build_constant_utf8_info(char *str)
     return result;
 }
 
-PackageInfo * buildPackageInfo(const char *name, PackageInfo *next)
+string PackageToPath(const string& name)
 {
-    char *pathName = TYPE_ALLOC_MULTI(char, strlen(name) + 2);
-    PackageInfo *package = TYPE_ALLOC(PackageInfo);
-    bool slashFlag = false;
-    package->name = pathName;
-    while (*name) {
-        if (*name == '.') {
-            *pathName++ = '/';
-            slashFlag = true;
-        } else {
-            *pathName++ = *name;
-            slashFlag = false;
-        }
-        ++name;
-    }
-    if (!slashFlag) {
-        *pathName++ = '/';
-    }
-    *pathName = '\0';
-    package->nameLength = strlen(package->name);
-    package->next = next;
-    return package;
-}
-
-void excludePackage(const char *name)
-{
-    ExcludedPackages = buildPackageInfo(name, ExcludedPackages);
+    string pathName(name);
+    std::replace(pathName.begin(), pathName.end(), '.', '/');
+    if (pathName[pathName.size()-1] != '/')
+        pathName += '/';
+    return pathName;
 }
 
 void ClassFileAnalyzer::findDeps(char *name)
@@ -328,6 +313,15 @@ char * getClassName(classFile *cf, int index)
         }
     }
     return NULL;
+}
+
+bool ClassFileAnalyzer::isIncludedClass(const string& name) const
+{
+    if (matchPackage(name, mExcludedPackages))
+        return false;
+    if (mIncludedPackages.size() > 0)
+        return matchPackage(name, mIncludedPackages);
+    return true;
 }
 
 void ClassFileAnalyzer::scanAnnotation(uint8_t **bufptr, classFile *cf)
@@ -459,32 +453,9 @@ FILE * fopenPath(char *path)
     return fopen(path, "w");
 }
 
-void includePackage(char *name)
+bool matchPackage(const string& name, const StringSet& packages)
 {
-    IncludedPackages = buildPackageInfo(name, IncludedPackages);
-}
-
-bool isIncludedClass(char *name)
-{
-    if (matchPackage(name, ExcludedPackages)) {
-        return false;
-    }
-    if (IncludedPackages) {
-        return matchPackage(name, IncludedPackages);
-    } else {
-        return true;
-    }
-}
-
-bool matchPackage(char *name, PackageInfo *packages)
-{
-    while (packages) {
-        if (strncmp(name, packages->name, packages->nameLength) == 0) {
-            return true;
-        }
-        packages = packages->next;
-    }
-    return false;
+    return packages.find(name) != packages.end();
 }
 
 bool mkdirPath(char *path)
@@ -794,7 +765,7 @@ int main(int argc, char *argv[])
                         ++i;
                         p = argv[i];
                     }
-                    excludePackage(p);
+                    analyzer.excludePackage(p);
                     break;
                 case 'i':
                     if (argv[i][2]) {
@@ -803,7 +774,7 @@ int main(int argc, char *argv[])
                         ++i;
                         p = argv[i];
                     }
-                    includePackage(p);
+                    analyzer.includePackage(p);
                     break;
                 case 'j':
                     if (argv[i][2]) {
@@ -832,9 +803,9 @@ int main(int argc, char *argv[])
             }
         } else {
             if (excludeLibraryPackages) {
-                excludePackage("java");
-                excludePackage("javax");
-                excludePackage("com.sun");
+                analyzer.excludePackage("java");
+                analyzer.excludePackage("javax");
+                analyzer.excludePackage("com.sun");
                 excludeLibraryPackages = false;
             }
             analyzer.analyzeClassFile(argv[i]);
