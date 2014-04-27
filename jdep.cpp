@@ -1,7 +1,9 @@
 /*
-  jdep.c -- Java .class file dependency analyzer
+  jdep.cpp -- Java .class file dependency analyzer
 
+  Derived from work by:
   Copyright 2009 Chip Morningstar
+
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -66,11 +68,16 @@ PackageInfo *IncludedPackages = NULL;
 #define CONSTANT_String                  8
 #define CONSTANT_Utf8                    1
 
-struct attribute_info;
-struct classFile;
-struct cp_info;
-struct constant_class_info;
-struct constant_utf8_info;
+struct cp_info {
+    int tag;            /* CONSTANT_xxxx */
+};
+
+struct attribute_info {
+    attribute_info *next;
+    uint16_t attribute_name_index;
+    long attribute_length;
+    uint8_t *info;
+};
 
 struct classFile {
     uint16_t constant_pool_count;
@@ -80,16 +87,6 @@ struct classFile {
 
 #define LONG_TAG ((cp_info *) -1)
 
-struct attribute_info {
-    attribute_info *next;
-    uint16_t attribute_name_index;
-    long attribute_length;
-    uint8_t *info;
-};
-
-struct cp_info {
-    int tag;            /* CONSTANT_xxxx */
-};
 
 struct constant_class_info {
     int tag;            /* CONSTANT_Class */
@@ -101,28 +98,23 @@ struct constant_utf8_info {
     char *str;
 };
 
-static int scanElementValue(uint8_t **bufptr, classFile *cf, char *deps[],
-    int depCount);
-
-
-static int findDeps(char *name, char *deps[], int depCount);
-static int findDepsInFile(char *target, classFile *cf, char *deps[],
-  int depCount);
-static FILE *fopenPath(char *path);
-static bool isIncludedClass(char *name);
-static bool matchPackage(char *name, PackageInfo *packages);
-static bool mkdirPath(char *path);
-static uint8_t *readByteArray(FILE *fyle, int length);
-static classFile *readClassFile(FILE *fyle, char *filename);
-static cp_info **readConstantPool(FILE *fyle, char *filename, int count);
-static cp_info *readConstantPoolInfo(FILE *fyle, char *filename);
-static attribute_info *readFields(FILE *fyle, int count, attribute_info *atts);
-static uint32_t readLong(FILE *fyle);
-static attribute_info *readMethods(FILE *fyle, int count,
-    attribute_info *atts);
-static uint16_t readWord(FILE *fyle);
-static void skipWordArray(FILE *fyle, int length);
-static void reverseBytes(char *data, int length);
+int scanElementValue(uint8_t **bufptr, classFile *cf, char *deps[], int depCount);
+int findDeps(char *name, char *deps[], int depCount);
+int findDepsInFile(char *target, classFile *cf, char *deps[], int depCount);
+FILE *fopenPath(char *path);
+bool isIncludedClass(char *name);
+bool matchPackage(char *name, PackageInfo *packages);
+bool mkdirPath(char *path);
+uint8_t *readByteArray(FILE *fyle, int length);
+classFile *readClassFile(FILE *fyle, char *filename);
+cp_info **readConstantPool(FILE *fyle, char *filename, int count);
+cp_info *readConstantPoolInfo(FILE *fyle, char *filename);
+attribute_info *readFields(FILE *fyle, int count, attribute_info *atts);
+uint32_t readLong(FILE *fyle);
+attribute_info *readMethods(FILE *fyle, int count, attribute_info *atts);
+uint16_t readWord(FILE *fyle);
+void skipWordArray(FILE *fyle, int length);
+void reverseBytes(char *data, int length);
 
 
 int addDep(char *name, char *deps[], int depCount)
