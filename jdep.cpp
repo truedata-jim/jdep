@@ -26,16 +26,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <strings.h>
 #include <dirent.h>
 #include <sys/stat.h>
-
-typedef unsigned char   byte;           /*  8-bit number */
-typedef unsigned short  word;           /* 16-bit number */
-typedef unsigned long   longword;       /* 32-bit number */
-
-#define false   0
 
 #define FREE(p)    free(p)
 #define ALLOC(n)   malloc(n)
@@ -78,7 +73,7 @@ struct constant_class_info;
 struct constant_utf8_info;
 
 struct classFile {
-    word constant_pool_count;
+    uint16_t constant_pool_count;
     cp_info **constant_pool;
     attribute_info *attributes;
 };
@@ -87,9 +82,9 @@ struct classFile {
 
 struct attribute_info {
     attribute_info *next;
-    word attribute_name_index;
+    uint16_t attribute_name_index;
     long attribute_length;
-    byte *info;
+    uint8_t *info;
 };
 
 struct cp_info {
@@ -98,7 +93,7 @@ struct cp_info {
 
 struct constant_class_info {
     int tag;            /* CONSTANT_Class */
-    word name_index;
+    uint16_t name_index;
 };
 
 struct constant_utf8_info {
@@ -106,7 +101,7 @@ struct constant_utf8_info {
     char *str;
 };
 
-static int scanElementValue(byte **bufptr, classFile *cf, char *deps[],
+static int scanElementValue(uint8_t **bufptr, classFile *cf, char *deps[],
     int depCount);
 
 
@@ -117,15 +112,15 @@ static FILE *fopenPath(char *path);
 static bool isIncludedClass(char *name);
 static bool matchPackage(char *name, PackageInfo *packages);
 static bool mkdirPath(char *path);
-static byte *readByteArray(FILE *fyle, int length);
+static uint8_t *readByteArray(FILE *fyle, int length);
 static classFile *readClassFile(FILE *fyle, char *filename);
 static cp_info **readConstantPool(FILE *fyle, char *filename, int count);
 static cp_info *readConstantPoolInfo(FILE *fyle, char *filename);
 static attribute_info *readFields(FILE *fyle, int count, attribute_info *atts);
-static longword readLong(FILE *fyle);
+static uint32_t readLong(FILE *fyle);
 static attribute_info *readMethods(FILE *fyle, int count,
     attribute_info *atts);
-static word readWord(FILE *fyle);
+static uint16_t readWord(FILE *fyle);
 static void skipWordArray(FILE *fyle, int length);
 static void reverseBytes(char *data, int length);
 
@@ -184,8 +179,8 @@ void analyzeClassFile(char *name)
     }
 }
 
-attribute_info * build_attribute_info(word attribute_name_index, long attribute_length,
-                     byte *info, attribute_info *next)
+attribute_info * build_attribute_info(uint16_t attribute_name_index, long attribute_length,
+                     uint8_t *info, attribute_info *next)
 {
     attribute_info *result = TYPE_ALLOC(attribute_info);
     result->next = next;
@@ -195,7 +190,7 @@ attribute_info * build_attribute_info(word attribute_name_index, long attribute_
     return result;
 }
 
-classFile * build_classFile(word constant_pool_count, cp_info **constant_pool,
+classFile * build_classFile(uint16_t constant_pool_count, cp_info **constant_pool,
                 attribute_info *attributes)
 {
     classFile *result = TYPE_ALLOC(classFile);
@@ -205,7 +200,7 @@ classFile * build_classFile(word constant_pool_count, cp_info **constant_pool,
     return result;
 }
 
-constant_class_info * build_constant_class_info(word name_index)
+constant_class_info * build_constant_class_info(uint16_t name_index)
 {
     constant_class_info *result = TYPE_ALLOC(constant_class_info);
     result->tag = CONSTANT_Class;
@@ -269,18 +264,18 @@ int findDeps(char *name, char *deps[], int depCount)
     return depCount;
 }
 
-byte decodeByte(byte **bufptr)
+uint8_t decodeByte(uint8_t **bufptr)
 {
-    byte *buf = *bufptr;
-    byte result = buf[0];
+    uint8_t *buf = *bufptr;
+    uint8_t result = buf[0];
     *bufptr += 1;
     return result;
 }
 
-word decodeWord(byte **bufptr)
+uint16_t decodeWord(uint8_t **bufptr)
 {
-    byte *buf = *bufptr;
-    word result = (buf[0] << 8) | buf[1];
+    uint8_t *buf = *bufptr;
+    uint16_t result = (buf[0] << 8) | buf[1];
     *bufptr += 2;
     return result;
 }
@@ -322,7 +317,7 @@ char * getClassName(classFile *cf, int index)
     return NULL;
 }
 
-int scanAnnotation(byte **bufptr, classFile *cf, char *deps[], int depCount)
+int scanAnnotation(uint8_t **bufptr, classFile *cf, char *deps[], int depCount)
 {
     int i;
 
@@ -340,9 +335,9 @@ int scanAnnotation(byte **bufptr, classFile *cf, char *deps[], int depCount)
     return depCount;
 }
 
-int scanElementValue(byte **bufptr, classFile *cf, char *deps[], int depCount)
+int scanElementValue(uint8_t **bufptr, classFile *cf, char *deps[], int depCount)
 {
-    byte tag = decodeByte(bufptr);
+    uint8_t tag = decodeByte(bufptr);
     switch (tag) {
         case 'B':
         case 'C':
@@ -433,7 +428,7 @@ int findDepsInFile(char *target, classFile *cf, char *deps[], int depCount)
         char *name = getString(cf, att->attribute_name_index);
         if (strcmp(name, "RuntimeVisibleAnnotations") == 0) {
             int i;
-            byte *info = att->info;
+            uint8_t *info = att->info;
             int num_annotations = decodeWord(&info);
             for (i = 0; i < num_annotations; ++i) {
                 depCount = scanAnnotation(&info, cf, deps, depCount);
@@ -512,9 +507,9 @@ bool mkdirPath(char *path)
 
 attribute_info * readAttributeInfo(FILE *fyle, attribute_info *atts)
 {
-    word attribute_name_index = readWord(fyle);
+    uint16_t attribute_name_index = readWord(fyle);
     long attribute_length = readLong(fyle);
-    byte *info = readByteArray(fyle, attribute_length);
+    uint8_t *info = readByteArray(fyle, attribute_length);
 
     return build_attribute_info(attribute_name_index, attribute_length, info,
                                 atts);
@@ -529,16 +524,16 @@ attribute_info * readAttributes(FILE *fyle, int count, attribute_info *atts)
     return atts;
 }
 
-byte readByte(FILE *fyle)
+uint8_t readByte(FILE *fyle)
 {
-    byte result;
+    uint8_t result;
     fread((char *)&result, 1, 1, fyle);
     return result;
 }
 
-byte * readByteArray(FILE *fyle, int length)
+uint8_t * readByteArray(FILE *fyle, int length)
 {
-    byte *result = TYPE_ALLOC_MULTI(byte, length + 1);
+    uint8_t *result = TYPE_ALLOC_MULTI(uint8_t, length + 1);
     fread((char *)result, 1, length, fyle);
     result[length] = 0;
     return result;
@@ -546,7 +541,7 @@ byte * readByteArray(FILE *fyle, int length)
 
 classFile * readClassFile(FILE *fyle, char *filename)
 {
-    word constant_pool_count;
+    uint16_t constant_pool_count;
     cp_info **constant_pool;
     attribute_info *atts = NULL;
 
@@ -558,13 +553,13 @@ classFile * readClassFile(FILE *fyle, char *filename)
     readWord(fyle); /* access_flags */
     readWord(fyle); /* this_class */
     readWord(fyle); /* super_class */
-    word interfaces_count = readWord(fyle);
+    uint16_t interfaces_count = readWord(fyle);
     skipWordArray(fyle, interfaces_count); /* interfaces */
-    word fields_count = readWord(fyle);
+    uint16_t fields_count = readWord(fyle);
     atts = readFields(fyle, fields_count, atts); /* fields */
-    word methods_count = readWord(fyle);
+    uint16_t methods_count = readWord(fyle);
     atts = readMethods(fyle, methods_count, atts); /* methods */
-    word attributes_count = readWord(fyle);
+    uint16_t attributes_count = readWord(fyle);
     atts = readAttributes(fyle, attributes_count, atts);
 
     return build_classFile(constant_pool_count, constant_pool, atts);
@@ -587,10 +582,10 @@ cp_info ** readConstantPool(FILE *fyle, char *filename, int count)
 
 cp_info * readConstantPoolInfo(FILE *fyle, char *filename)
 {
-    byte tag = readByte(fyle);
+    uint8_t tag = readByte(fyle);
     switch (tag) {
         case CONSTANT_Class:{
-            word name_index = readWord(fyle);
+            uint16_t name_index = readWord(fyle);
             return (cp_info *) build_constant_class_info(name_index);
         }
         case CONSTANT_Fieldref:{
@@ -636,7 +631,7 @@ cp_info * readConstantPoolInfo(FILE *fyle, char *filename)
             return NULL;
         }
         case CONSTANT_Utf8:{
-            word length = readWord(fyle);
+            uint16_t length = readWord(fyle);
             char *str = (char *) readByteArray(fyle, length);
             return (cp_info *) build_constant_utf8_info(str);
         }
@@ -648,9 +643,9 @@ cp_info * readConstantPoolInfo(FILE *fyle, char *filename)
     return NULL;
 }
 
-longword readLong(FILE *fyle)
+uint32_t readLong(FILE *fyle)
 {
-    longword result;
+    uint32_t result;
     fread((char *)&result, 4, 1, fyle);
     if (LittleEndian) {
         reverseBytes((char *)&result, 4);
@@ -658,9 +653,9 @@ longword readLong(FILE *fyle)
     return result;
 }
 
-word readWord(FILE *fyle)
+uint16_t readWord(FILE *fyle)
 {
-    word result;
+    uint16_t result;
     fread((char *)&result, 2, 1, fyle);
     if (LittleEndian) {
         reverseBytes((char *)&result, 2);
@@ -699,7 +694,7 @@ attribute_info * readFieldInfo(FILE *fyle, attribute_info *atts)
     readWord(fyle); /* access_flags */
     readWord(fyle); /* name_index */
     readWord(fyle); /* descriptor_index */
-    word attributes_count = readWord(fyle);
+    uint16_t attributes_count = readWord(fyle);
     return readAttributes(fyle, attributes_count, atts);
 }
 
@@ -717,7 +712,7 @@ attribute_info * readMethodInfo(FILE *fyle, attribute_info *atts)
     readWord(fyle); /* access_flags */
     readWord(fyle); /* name_index */
     readWord(fyle); /* descriptor_index */
-    word attributes_count = readWord(fyle);
+    uint16_t attributes_count = readWord(fyle);
     return readAttributes(fyle, attributes_count, atts);
 }
 
@@ -741,8 +736,8 @@ void skipWordArray(FILE *fyle, int length)
 void testEndianism(void)
 {
     union {
-        word asWord;
-        byte asBytes[2];
+        uint16_t asWord;
+        uint8_t asBytes[2];
     } tester;
 
     tester.asWord = 1;
