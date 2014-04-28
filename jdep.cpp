@@ -52,10 +52,6 @@ using std::set;
 
 #define USAGE "usage: jdep -a [-e PACKAGE] [-i PACKAGE] -h [-c CPATH] [-d DPATH] [-j JPATH] files...\n"
 
-const char *ClassRoot = "";
-const char *DepRoot = "";
-const char *JavaRoot = "";
-
 #define CONSTANT_Class                   7
 #define CONSTANT_Double                  6
 #define CONSTANT_Fieldref                9
@@ -174,6 +170,10 @@ public:
 
     void findDeps(const char *name);
 
+    void SetJavaRoot(const string& root) { mJavaRoot = SavePath(root); }
+    void SetClassRoot(const string& root) { mClassRoot = SavePath(root); }
+    void SetDepRoot(const string& root) { mDepRoot = SavePath(root); }
+
 private:
     typedef set<string> StringSet;
 
@@ -181,10 +181,23 @@ private:
 
     static bool matchPackage(const string& name, const StringSet& packages);
 
+    string SavePath(const string& _path)
+    {
+        string path(_path);
+        int len = path.size();
+        if (path[len-1] != '/')
+            path += '/';
+        return path;
+    }
+
 private:
     StringSet mDeps;
     StringSet mExcludedPackages;
     StringSet mIncludedPackages;
+
+    string mJavaRoot;
+    string mClassRoot;
+    string mDepRoot;
 };
 
 bool ClassFileAnalyzer::addDep(const char *name)
@@ -206,27 +219,28 @@ void ClassFileAnalyzer::analyzeClassFile(char *name)
         *match = '\0';
     }
 
-    if (ClassRoot[0]) {
-        /* Strip leading class root path */
-        if (strncmp(name, ClassRoot, strlen(ClassRoot))) {
+    if (mClassRoot != "")
+    {
+        const char* root = mClassRoot.c_str();
+        if (strncmp(name, root, mClassRoot.length())) {
             fprintf(stderr, "%s.class does not match class root path %s\n",
-                    name, ClassRoot);
+                    name, root);
             exit(1);
         }
-        name += strlen(ClassRoot);
+        name += mClassRoot.length();
     }
 
     findDeps(name);
 
-    snprintf(outfilename, sizeof(outfilename), "%s%s.d", DepRoot, name);
+    snprintf(outfilename, sizeof(outfilename), "%s%s.d", mDepRoot.c_str(), name);
     outfyle = fopenPath(outfilename);
     if (outfyle) {
-        fprintf(outfyle, "%s%s.class: \\\n", ClassRoot, name);
+        fprintf(outfyle, "%s%s.class: \\\n", mClassRoot.c_str(), name);
         for (StringSet::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
         {
             const char* dep = it->c_str();
             if (index(dep, '$') == NULL) {
-                fprintf(outfyle, "  %s%s.java \\\n", JavaRoot, dep);
+                fprintf(outfyle, "  %s%s.java \\\n", mJavaRoot.c_str(), dep);
             }
         }
         fprintf(outfyle, "\n");
@@ -277,7 +291,7 @@ void ClassFileAnalyzer::findDeps(const char *name)
     FILE *infyle;
     char infilename[1000];
 
-    snprintf(infilename, sizeof(infilename), "%s%s.class", ClassRoot, name);
+    snprintf(infilename, sizeof(infilename), "%s%s.class", mClassRoot.c_str(), name);
     ClassFile classFile(infilename);
     classFile.findDepsInFile(name, *this);
 
@@ -579,20 +593,6 @@ cp_info * readConstantPoolInfo(FileReader& reader, const char *filename)
     return NULL;
 }
 
-char * savePath(char *path)
-{
-    int len = strlen(path);
-    if (path[len-1] == '/') {
-        return strdup(path);
-    } else {
-        char *result = TYPE_ALLOC_MULTI(char, len+2);
-        strncpy(result, path, len+1);
-        result[len] = '/';
-        result[len+1] = '\0';
-        return result;
-    }
-}
-
 attribute_info * readFieldInfo(FileReader& reader, attribute_info *atts)
 {
     reader.ReadWord(); /* access_flags */
@@ -658,7 +658,7 @@ int main(int argc, char *argv[])
                         ++i;
                         p = argv[i];
                     }
-                    ClassRoot = savePath(p);
+                    analyzer.SetClassRoot(p);
                     break;
                 case 'd':
                     if (argv[i][2]) {
@@ -667,7 +667,7 @@ int main(int argc, char *argv[])
                         ++i;
                         p = argv[i];
                     }
-                    DepRoot = savePath(p);
+                    analyzer.SetDepRoot(p);
                     break;
                 case 'e':
                     if (argv[i][2]) {
@@ -694,7 +694,7 @@ int main(int argc, char *argv[])
                         ++i;
                         p = argv[i];
                     }
-                    JavaRoot = savePath(p);
+                    analyzer.SetJavaRoot(p);
                     break;
                 case 'h':
                     printf("%s", USAGE);
