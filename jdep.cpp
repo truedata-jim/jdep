@@ -380,7 +380,7 @@ void ClassFile::findDepsInFile(const char* target, ClassFileAnalyzer& analyzer)
                                    we need to recurse. */
                             bool added = analyzer.addDep(name);
                             if (added) {
-                                analyzer.findDeps(name);
+                                analyzer.findDeps(name);    // Recurses here!!
                             }
                         } else {
                                 /* It's somebody else's inner class, so we
@@ -481,10 +481,6 @@ ClassFile::ClassFile(const char* infilename)
     reader.ReadWord(); /* minor_version */
     reader.ReadWord(); /* major_version */
     mConstantPoolCount = reader.ReadWord();
-
-    // TODO: There may be a bug here with infilename.
-    // In my refactoring I think I collapsed two different versions of the filename
-    // down to one version, but they needed to stay separate.
     mConstantPool = readConstantPool(reader, infilename, mConstantPoolCount);
     reader.ReadWord(); /* access_flags */
     reader.ReadWord(); /* this_class */
