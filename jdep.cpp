@@ -38,6 +38,8 @@
 #include <string>
 #include <set>
 
+#include "BytesDecoder.h"
+
 using std::string;
 using std::set;
 
@@ -133,8 +135,8 @@ public:
 
     void findDepsInFile(const char* target, ClassFileAnalyzer& analyzer);
 
-    void scanAnnotation(uint8_t **bufptr, ClassFileAnalyzer& analyzer);
-    void scanElementValue(uint8_t **bufptr, ClassFileAnalyzer& analyzer);
+    void scanAnnotation(BytesDecoder& decoder, ClassFileAnalyzer& analyzer);
+    void scanElementValue(BytesDecoder& decoder, ClassFileAnalyzer& analyzer);
 
 private:
     uint16_t mConstantPoolCount;
@@ -285,22 +287,6 @@ void ClassFileAnalyzer::findDeps(const char *name)
 
 }
 
-uint8_t decodeByte(uint8_t **bufptr)
-{
-    uint8_t *buf = *bufptr;
-    uint8_t result = buf[0];
-    *bufptr += 1;
-    return result;
-}
-
-uint16_t decodeWord(uint8_t **bufptr)
-{
-    uint8_t *buf = *bufptr;
-    uint16_t result = (buf[0] << 8) | buf[1];
-    *bufptr += 2;
-    return result;
-}
-
 bool ClassFileAnalyzer::matchPackage(const string& name, const StringSet& packages)
 {
     return packages.find(name) != packages.end();
@@ -315,26 +301,26 @@ bool ClassFileAnalyzer::isIncludedClass(const string& name) const
     return true;
 }
 
-void ClassFile::scanAnnotation(uint8_t **bufptr, ClassFileAnalyzer& analyzer)
+void ClassFile::scanAnnotation(BytesDecoder& decoder, ClassFileAnalyzer& analyzer)
 {
     int i;
 
-    int type_index = decodeWord(bufptr);
+    int type_index = decoder.DecodeWord();
 
     const char *name = getClassName(type_index);
     if (analyzer.isIncludedClass(name)) {
         analyzer.addDep(name);
     }
-    int num_element_value_pairs = decodeWord(bufptr);
+    int num_element_value_pairs = decoder.DecodeWord();
     for (i = 0; i < num_element_value_pairs; ++i) {
-        int element_name_index = decodeWord(bufptr);
-        scanElementValue(bufptr, analyzer);
+        int element_name_index = decoder.DecodeWord();
+        scanElementValue(decoder, analyzer);
     }
 }
 
-void ClassFile::scanElementValue(uint8_t **bufptr, ClassFileAnalyzer& analyzer)
+void ClassFile::scanElementValue(BytesDecoder& decoder, ClassFileAnalyzer& analyzer)
 {
-    uint8_t tag = decodeByte(bufptr);
+    uint8_t tag = decoder.DecodeByte();
     switch (tag) {
         case 'B':
         case 'C':
@@ -344,35 +330,35 @@ void ClassFile::scanElementValue(uint8_t **bufptr, ClassFileAnalyzer& analyzer)
         case 'J':
         case 'S':
         case 'Z': {
-            int const_value_index = decodeWord(bufptr);
+            int const_value_index = decoder.DecodeWord();
             break;
         }
         case 's': {
-            int const_value_index = decodeWord(bufptr);
+            int const_value_index = decoder.DecodeWord();
             break;
         }
         case 'c': {
-            int class_info_index = decodeWord(bufptr);
+            int class_info_index = decoder.DecodeWord();
             break;
         }
         case 'e': {
-            int type_name_index = decodeWord(bufptr);
+            int type_name_index = decoder.DecodeWord();
             const char *name = getClassName(type_name_index);
-            int const_name_index = decodeWord(bufptr);
+            int const_name_index = decoder.DecodeWord();
             if (analyzer.isIncludedClass(name)) {
                 analyzer.addDep(name);
             }
             break;
         }
         case '@': {
-            scanAnnotation(bufptr, analyzer);
+            scanAnnotation(decoder, analyzer);
             break;
         }
         case '[': {
-            int num_values = decodeWord(bufptr);
+            int num_values = decoder.DecodeWord();
             int i;
             for (i = 0; i < num_values; ++i) {
-                scanElementValue(bufptr, analyzer);
+                scanElementValue(decoder, analyzer);
             }
             break;
         }
@@ -421,10 +407,10 @@ void ClassFile::findDepsInFile(const char* target, ClassFileAnalyzer& analyzer)
         const char *name = getString(att->attribute_name_index);
         if (strcmp(name, "RuntimeVisibleAnnotations") == 0) {
             int i;
-            uint8_t *info = att->info;
-            int num_annotations = decodeWord(&info);
+            BytesDecoder decoder(att->info, att->attribute_length);
+            int num_annotations = decoder.DecodeWord();
             for (i = 0; i < num_annotations; ++i) {
-                scanAnnotation(&info, analyzer);
+                scanAnnotation(decoder, analyzer);
             }
         }
         att = att->next;

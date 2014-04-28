@@ -4,16 +4,15 @@
 # "make jdep"      - Make the Java class file dependency analyzer tool
 # "make clean"     - Remove object and executable files
 
-# C compiler
-CC = g++
-
-CFLAGS = -g
-
+# C++ compiler
+CPP = g++ -g
 
 # The directory where built executables go
 BIN_DIR = ./bin
 
-DIRS = $(BIN_DIR)
+O_DIR = ./o
+
+DIRS = $(BIN_DIR) $(O_DIR)
 
 all: jdep touchp test
 
@@ -24,8 +23,14 @@ touchp: $(BIN_DIR) $(BIN_DIR)/touchp
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
-$(BIN_DIR)/jdep: jdep.cpp
-	$(CC) $(CFLAGS) -ferror-limit=6 -o $@ jdep.cpp
+$(O_DIR):
+	mkdir -p $(O_DIR)
+
+$(O_DIR)/%.o : %.cpp
+	$(CPP) -c -ferror-limit=6 -o $@ $^
+
+$(BIN_DIR)/jdep: $(O_DIR)/jdep.o $(O_DIR)/BytesDecoder.o
+	$(CPP) -o $@ $^
 
 $(BIN_DIR)/touchp: touchp.sh
 	cp touchp.sh $@

@@ -1,3 +1,4 @@
 bin/jdep
 bin/jdep.dSYM/
 testdata/
+o/
