@@ -39,6 +39,7 @@
 #include <set>
 
 #include "BytesDecoder.h"
+#include "FileReader.h"
 
 using std::string;
 using std::set;
@@ -51,7 +52,6 @@ using std::set;
 
 #define USAGE "usage: jdep -a [-e PACKAGE] [-i PACKAGE] -h [-c CPATH] [-d DPATH] [-j JPATH] files...\n"
 
-bool LittleEndian = false;
 const char *ClassRoot = "";
 const char *DepRoot = "";
 const char *JavaRoot = "";
@@ -149,15 +149,11 @@ private:
 
 FILE *fopenPath(char *path);
 bool mkdirPath(char *path);
-uint8_t *readByteArray(FILE *fyle, int length);
-cp_info **readConstantPool(FILE *fyle, const char *filename, int count);
-cp_info *readConstantPoolInfo(FILE *fyle, const char *filename);
-attribute_info *readFields(FILE *fyle, int count, attribute_info *atts);
-uint32_t readLong(FILE *fyle);
-attribute_info *readMethods(FILE *fyle, int count, attribute_info *atts);
-uint16_t readWord(FILE *fyle);
-void skipWordArray(FILE *fyle, int length);
-void reverseBytes(char *data, int length);
+cp_info **readConstantPool(FileReader& reader, const char *filename, int count);
+cp_info *readConstantPoolInfo(FileReader& reader, const char *filename);
+attribute_info *readFields(FileReader& reader, int count, attribute_info *atts);
+attribute_info *readMethods(FileReader& reader, int count, attribute_info *atts);
+void skipWordArray(FileReader& reader, int length);
 
 class ClassFileAnalyzer
 {
@@ -455,38 +451,23 @@ bool mkdirPath(char *path)
     }
 }
 
-attribute_info * readAttributeInfo(FILE *fyle, attribute_info *atts)
+attribute_info * readAttributeInfo(FileReader& reader, attribute_info *atts)
 {
-    uint16_t attribute_name_index = readWord(fyle);
-    long attribute_length = readLong(fyle);
-    uint8_t *info = readByteArray(fyle, attribute_length);
+    uint16_t attribute_name_index = reader.ReadWord();
+    long attribute_length = reader.ReadLong();
+    uint8_t *info = reader.ReadByteArray(attribute_length);
 
     return build_attribute_info(attribute_name_index, attribute_length, info,
                                 atts);
 }
 
-attribute_info * readAttributes(FILE *fyle, int count, attribute_info *atts)
+attribute_info * readAttributes(FileReader& reader, int count, attribute_info *atts)
 {
     int i;
     for (i = 0; i < count; ++i) {
-        atts = readAttributeInfo(fyle, atts);
+        atts = readAttributeInfo(reader, atts);
     }
     return atts;
-}
-
-uint8_t readByte(FILE *fyle)
-{
-    uint8_t result;
-    fread((char *)&result, 1, 1, fyle);
-    return result;
-}
-
-uint8_t * readByteArray(FILE *fyle, int length)
-{
-    uint8_t *result = TYPE_ALLOC_MULTI(uint8_t, length + 1);
-    fread((char *)result, 1, length, fyle);
-    result[length] = 0;
-    return result;
 }
 
 ClassFile::ClassFile(const char* infilename)
@@ -494,44 +475,37 @@ ClassFile::ClassFile(const char* infilename)
 , mConstantPool(0)
 , mAttributes(0)
 {
-    FILE* fyle = fopen(infilename, "rb");
-    if (!fyle)
-    {
-        fprintf(stderr, "unable to open class file %s", infilename);
-        exit(1);
-    }
+    FileReader reader(infilename);
 
-    readLong(fyle); /* magic */
-    readWord(fyle); /* minor_version */
-    readWord(fyle); /* major_version */
-    mConstantPoolCount = readWord(fyle);
+    reader.ReadLong(); /* magic */
+    reader.ReadWord(); /* minor_version */
+    reader.ReadWord(); /* major_version */
+    mConstantPoolCount = reader.ReadWord();
 
     // TODO: There may be a bug here with infilename.
     // In my refactoring I think I collapsed two different versions of the filename
     // down to one version, but they needed to stay separate.
-    mConstantPool = readConstantPool(fyle, infilename, mConstantPoolCount);
-    readWord(fyle); /* access_flags */
-    readWord(fyle); /* this_class */
-    readWord(fyle); /* super_class */
-    uint16_t interfaces_count = readWord(fyle);
-    skipWordArray(fyle, interfaces_count); /* interfaces */
-    uint16_t fields_count = readWord(fyle);
-    mAttributes = readFields(fyle, fields_count, mAttributes); /* fields */
-    uint16_t methods_count = readWord(fyle);
-    mAttributes = readMethods(fyle, methods_count, mAttributes); /* methods */
-    uint16_t attributes_count = readWord(fyle);
-    mAttributes = readAttributes(fyle, attributes_count, mAttributes);
-
-    fclose(fyle);
+    mConstantPool = readConstantPool(reader, infilename, mConstantPoolCount);
+    reader.ReadWord(); /* access_flags */
+    reader.ReadWord(); /* this_class */
+    reader.ReadWord(); /* super_class */
+    uint16_t interfaces_count = reader.ReadWord();
+    skipWordArray(reader, interfaces_count); /* interfaces */
+    uint16_t fields_count = reader.ReadWord();
+    mAttributes = readFields(reader, fields_count, mAttributes); /* fields */
+    uint16_t methods_count = reader.ReadWord();
+    mAttributes = readMethods(reader, methods_count, mAttributes); /* methods */
+    uint16_t attributes_count = reader.ReadWord();
+    mAttributes = readAttributes(reader, attributes_count, mAttributes);
 }
 
-cp_info** readConstantPool(FILE *fyle, const char *filename, int count)
+cp_info** readConstantPool(FileReader& reader, const char *filename, int count)
 {
     cp_info **result = TYPE_ALLOC_MULTI(cp_info *, count);
     int i;
     result[0] = NULL;
     for (i=1; i<count; ++i) {
-        result[i] = readConstantPoolInfo(fyle, filename);
+        result[i] = readConstantPoolInfo(reader, filename);
         if (result[i] == LONG_TAG) {
             result[i] = NULL;
             result[++i] = NULL;
@@ -540,59 +514,59 @@ cp_info** readConstantPool(FILE *fyle, const char *filename, int count)
     return result;
 }
 
-cp_info * readConstantPoolInfo(FILE *fyle, const char *filename)
+cp_info * readConstantPoolInfo(FileReader& reader, const char *filename)
 {
-    uint8_t tag = readByte(fyle);
+    uint8_t tag = reader.ReadByte();
     switch (tag) {
         case CONSTANT_Class:{
-            uint16_t name_index = readWord(fyle);
+            uint16_t name_index = reader.ReadWord();
             return (cp_info *) build_constant_class_info(name_index);
         }
         case CONSTANT_Fieldref:{
-            readWord(fyle); /* class_index */
-            readWord(fyle); /* name_and_type_index */
+            reader.ReadWord(); /* class_index */
+            reader.ReadWord(); /* name_and_type_index */
             return NULL;
         }
         case CONSTANT_Methodref:{
-            readWord(fyle); /* class_index */
-            readWord(fyle); /* name_and_type_index */
+            reader.ReadWord(); /* class_index */
+            reader.ReadWord(); /* name_and_type_index */
             return NULL;
         }
         case CONSTANT_InterfaceMethodref:{
-            readWord(fyle); /* class_index */
-            readWord(fyle); /* name_and_type_index */
+            reader.ReadWord(); /* class_index */
+            reader.ReadWord(); /* name_and_type_index */
             return NULL;
         }
         case CONSTANT_String:{
-            readWord(fyle); /* string_index */
+            reader.ReadWord(); /* string_index */
             return NULL;
         }
         case CONSTANT_Integer:{
-            readLong(fyle); /* bytes */
+            reader.ReadLong(); /* bytes */
             return NULL;
         }
         case CONSTANT_Float:{
-            readLong(fyle); /* bytes */
+            reader.ReadLong(); /* bytes */
             return NULL;
         }
         case CONSTANT_Long:{
-            readLong(fyle); /* high_bytes */
-            readLong(fyle); /* low_bytes */
+            reader.ReadLong(); /* high_bytes */
+            reader.ReadLong(); /* low_bytes */
             return LONG_TAG;
         }
         case CONSTANT_Double:{
-            readLong(fyle); /* high_bytes */
-            readLong(fyle); /* low_bytes */
+            reader.ReadLong(); /* high_bytes */
+            reader.ReadLong(); /* low_bytes */
             return LONG_TAG;
         }
         case CONSTANT_NameAndType:{
-            readWord(fyle); /* name_index */
-            readWord(fyle); /* descriptor_index */
+            reader.ReadWord(); /* name_index */
+            reader.ReadWord(); /* descriptor_index */
             return NULL;
         }
         case CONSTANT_Utf8:{
-            uint16_t length = readWord(fyle);
-            char *str = (char *) readByteArray(fyle, length);
+            uint16_t length = reader.ReadWord();
+            char *str = (char *) reader.ReadByteArray(length);
             return (cp_info *) build_constant_utf8_info(str);
         }
         default:
@@ -601,38 +575,6 @@ cp_info * readConstantPoolInfo(FILE *fyle, const char *filename)
             exit(1);
     }
     return NULL;
-}
-
-uint32_t readLong(FILE *fyle)
-{
-    uint32_t result;
-    fread((char *)&result, 4, 1, fyle);
-    if (LittleEndian) {
-        reverseBytes((char *)&result, 4);
-    }
-    return result;
-}
-
-uint16_t readWord(FILE *fyle)
-{
-    uint16_t result;
-    fread((char *)&result, 2, 1, fyle);
-    if (LittleEndian) {
-        reverseBytes((char *)&result, 2);
-    }
-    return result;
-}
-
-void reverseBytes(char *data, int length)
-{
-    char temp;
-    int i;
-
-    for (i = 0; i<length/2; ++i) {
-        temp = data[i];
-        data[i] = data[length-1-i];
-        data[length-1-i] = temp;
-    }
 }
 
 char * savePath(char *path)
@@ -649,59 +591,48 @@ char * savePath(char *path)
     }
 }
 
-attribute_info * readFieldInfo(FILE *fyle, attribute_info *atts)
+attribute_info * readFieldInfo(FileReader& reader, attribute_info *atts)
 {
-    readWord(fyle); /* access_flags */
-    readWord(fyle); /* name_index */
-    readWord(fyle); /* descriptor_index */
-    uint16_t attributes_count = readWord(fyle);
-    return readAttributes(fyle, attributes_count, atts);
+    reader.ReadWord(); /* access_flags */
+    reader.ReadWord(); /* name_index */
+    reader.ReadWord(); /* descriptor_index */
+    uint16_t attributes_count = reader.ReadWord();
+    return readAttributes(reader, attributes_count, atts);
 }
 
-attribute_info * readFields(FILE *fyle, int count, attribute_info *atts)
+attribute_info * readFields(FileReader& reader, int count, attribute_info *atts)
 {
     int i;
     for (i=0; i<count; ++i) {
-        atts = readFieldInfo(fyle, atts);
+        atts = readFieldInfo(reader, atts);
     }
     return atts;
 }
 
-attribute_info * readMethodInfo(FILE *fyle, attribute_info *atts)
+attribute_info * readMethodInfo(FileReader& reader, attribute_info *atts)
 {
-    readWord(fyle); /* access_flags */
-    readWord(fyle); /* name_index */
-    readWord(fyle); /* descriptor_index */
-    uint16_t attributes_count = readWord(fyle);
-    return readAttributes(fyle, attributes_count, atts);
+    reader.ReadWord(); /* access_flags */
+    reader.ReadWord(); /* name_index */
+    reader.ReadWord(); /* descriptor_index */
+    uint16_t attributes_count = reader.ReadWord();
+    return readAttributes(reader, attributes_count, atts);
 }
 
-attribute_info * readMethods(FILE *fyle, int count, attribute_info *atts)
+attribute_info * readMethods(FileReader& reader, int count, attribute_info *atts)
 {
     int i;
     for (i = 0; i < count; ++i) {
-        atts = readMethodInfo(fyle, atts);
+        atts = readMethodInfo(reader, atts);
     }
     return atts;
 }
 
-void skipWordArray(FILE *fyle, int length)
+void skipWordArray(FileReader& reader, int length)
 {
     int i;
     for (i = 0; i < length; ++i) {
-        readWord(fyle);
+        reader.ReadWord();
     }
-}
-
-void testEndianism(void)
-{
-    union {
-        uint16_t asWord;
-        uint8_t asBytes[2];
-    } tester;
-
-    tester.asWord = 1;
-    LittleEndian = (tester.asBytes[0] == 1);
 }
 
 int main(int argc, char *argv[])
@@ -709,8 +640,6 @@ int main(int argc, char *argv[])
     int i;
     char *p;
     bool excludeLibraryPackages = true;
-
-    testEndianism();
 
     ClassFileAnalyzer analyzer;
 

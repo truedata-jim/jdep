@@ -29,7 +29,7 @@ $(O_DIR):
 $(O_DIR)/%.o : %.cpp
 	$(CPP) -c -ferror-limit=6 -o $@ $^
 
-$(BIN_DIR)/jdep: $(O_DIR)/jdep.o $(O_DIR)/BytesDecoder.o
+$(BIN_DIR)/jdep: $(O_DIR)/jdep.o $(O_DIR)/BytesDecoder.o  $(O_DIR)/FileReader.o
 	$(CPP) -o $@ $^
 
 $(BIN_DIR)/touchp: touchp.sh
