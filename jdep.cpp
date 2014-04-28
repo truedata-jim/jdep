@@ -162,9 +162,9 @@ public:
 
     void analyzeClassFile(char *name);
 
-    void includePackage(const string& name) {mIncludedPackages.insert(PackageToPath(name)); }
+    void includePackage(const string& name) { mIncludedPackages.insert(PackageToPath(name)); }
 
-    void excludePackage(const string& name) {mExcludedPackages.insert(PackageToPath(name)); }
+    void excludePackage(const string& name) { mExcludedPackages.insert(PackageToPath(name)); }
 
     bool addDep(const char *name);
         // Adds name to the set of known dependencies.
@@ -226,7 +226,7 @@ void ClassFileAnalyzer::analyzeClassFile(char *name)
         {
             const char* dep = it->c_str();
             if (index(dep, '$') == NULL) {
-                fprintf(outfyle, "  %s%s.java\\\n", JavaRoot, dep);
+                fprintf(outfyle, "  %s%s.java \\\n", JavaRoot, dep);
             }
         }
         fprintf(outfyle, "\n");
@@ -285,7 +285,13 @@ void ClassFileAnalyzer::findDeps(const char *name)
 
 bool ClassFileAnalyzer::matchPackage(const string& name, const StringSet& packages)
 {
-    return packages.find(name) != packages.end();
+    for (StringSet::iterator it=packages.begin(); it!=packages.end(); ++it)
+    {
+        size_t len = it->size();
+        if (name.substr(0, len) == *it)
+            return true;
+    }
+    return false;
 }
 
 bool ClassFileAnalyzer::isIncludedClass(const string& name) const
@@ -713,6 +719,7 @@ int main(int argc, char *argv[])
                 analyzer.excludePackage("com.sun");
                 excludeLibraryPackages = false;
             }
+
             analyzer.analyzeClassFile(argv[i]);
         }
     }

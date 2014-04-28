@@ -41,8 +41,16 @@ $(BIN_DIR)/touchp: touchp.sh
 clean:
 	rm -rf $(BIN_DIR)/jdep $(BIN_DIR)/touchp
 
-DEVROOT = ~/RedSeal/badger_exp
+DEVROOT = badger_exp
+
+EXCLUDES = -e org.springframework
 
 test: jdep
-	jdep -d testdata/deps -c $(DEVROOT)/test-classes/com -j $(DEVROOT)/server/test/com \
+	rm -rf testdata/deps/*
+	rm -rf testdata/origdeps/*
+	jdep $(EXCLUDES) -d testdata/deps -c $(DEVROOT)/test-classes -j $(DEVROOT)/server/test \
 		$(DEVROOT)/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
+	origjdep $(EXCLUDES) -d testdata/origdeps -c $(DEVROOT)/test-classes -j $(DEVROOT)/server/test \
+		$(DEVROOT)/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
+	diff -q testdata/deps/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.d \
+	        testdata/origdeps/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.d

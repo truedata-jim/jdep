@@ -2,3 +2,4 @@ bin/jdep
 bin/jdep.dSYM/
 testdata/
 o/
+badger_exp
