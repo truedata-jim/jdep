@@ -4,6 +4,8 @@
   Derived from work by:
   Copyright 2009 Chip Morningstar
 
+  Ported to C++ and extensively revised by Jim Lloyd
+
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -48,9 +50,6 @@ using std::set;
 #define ALLOC(n)   malloc(n)
 
 #define TYPE_ALLOC(type)          ((type *) ALLOC(sizeof(type)))
-#define TYPE_ALLOC_MULTI(type, n) ((type *) ALLOC(sizeof(type) * (n)))
-
-#define USAGE "usage: jdep -a [-e PACKAGE] [-i PACKAGE] -h [-c CPATH] [-d DPATH] [-j JPATH] files...\n"
 
 #define CONSTANT_Class                   7
 #define CONSTANT_Double                  6
@@ -66,6 +65,20 @@ using std::set;
 
 struct cp_info {
     int tag;            /* CONSTANT_xxxx */
+
+    cp_info(int _tag) : tag(_tag) {}
+};
+
+struct constant_class_info : public cp_info {
+    uint16_t name_index;
+
+    constant_class_info(uint16_t index) : cp_info(CONSTANT_Class), name_index(index) {}
+};
+
+struct constant_utf8_info  : public cp_info {
+    char *str;
+
+    constant_utf8_info(char* _str) : cp_info(CONSTANT_Utf8), str(_str) {}
 };
 
 struct attribute_info {
@@ -73,16 +86,6 @@ struct attribute_info {
     uint16_t attribute_name_index;
     long attribute_length;
     uint8_t *info;
-};
-
-struct constant_class_info {
-    int tag;            /* CONSTANT_Class */
-    uint16_t name_index;
-};
-
-struct constant_utf8_info {
-    int tag;            /* CONSTANT_Utf8 */
-    char *str;
 };
 
 class ClassFileAnalyzer;
@@ -258,22 +261,6 @@ attribute_info * build_attribute_info(uint16_t attribute_name_index, long attrib
     result->attribute_name_index = attribute_name_index;
     result->attribute_length = attribute_length;
     result->info = info;
-    return result;
-}
-
-constant_class_info * build_constant_class_info(uint16_t name_index)
-{
-    constant_class_info *result = TYPE_ALLOC(constant_class_info);
-    result->tag = CONSTANT_Class;
-    result->name_index = name_index;
-    return result;
-}
-
-constant_utf8_info * build_constant_utf8_info(char *str)
-{
-    constant_utf8_info *result = TYPE_ALLOC(constant_utf8_info);
-    result->tag = CONSTANT_Utf8;
-    result->str = str;
     return result;
 }
 
@@ -517,7 +504,7 @@ ClassFile::ClassFile(const char* infilename)
 
 cp_info** readConstantPool(FileReader& reader, const char *filename, int count)
 {
-    cp_info **result = TYPE_ALLOC_MULTI(cp_info *, count);
+    cp_info** result = new cp_info*[count];
     int i;
     result[0] = NULL;
     for (i=1; i<count; ++i) {
@@ -536,7 +523,7 @@ cp_info * readConstantPoolInfo(FileReader& reader, const char *filename)
     switch (tag) {
         case CONSTANT_Class:{
             uint16_t name_index = reader.ReadWord();
-            return (cp_info *) build_constant_class_info(name_index);
+            return new constant_class_info(name_index);
         }
         case CONSTANT_Fieldref:{
             reader.ReadWord(); /* class_index */
@@ -583,7 +570,7 @@ cp_info * readConstantPoolInfo(FileReader& reader, const char *filename)
         case CONSTANT_Utf8:{
             uint16_t length = reader.ReadWord();
             char *str = (char *) reader.ReadByteArray(length);
-            return (cp_info *) build_constant_utf8_info(str);
+            return new constant_utf8_info(str);
         }
         default:
             fprintf(stderr, "invalid constant pool tag %d in %s\n", tag,
@@ -642,6 +629,7 @@ int main(int argc, char *argv[])
     int i;
     char *p;
     bool excludeLibraryPackages = true;
+    const char* usage = "usage: jdep -a [-e PACKAGE] [-i PACKAGE] -h [-c CPATH] [-d DPATH] [-j JPATH] files...\n";
 
     ClassFileAnalyzer analyzer;
 
@@ -697,7 +685,8 @@ int main(int argc, char *argv[])
                     analyzer.SetJavaRoot(p);
                     break;
                 case 'h':
-                    printf("%s", USAGE);
+                {
+                    printf("%s", usage);
                     printf("options:\n");
                     printf("-a          Include java.* packages in dependencies\n");
                     printf("-e PACKAGE  Exclude PACKAGE from dependencies\n");
@@ -708,8 +697,9 @@ int main(int argc, char *argv[])
                     printf("-j JPATH    Use JPATH as base directory for .java files in dependency lines\n");
                     printf("file        Name of a class file to examine\n");
                     exit(0);
+                }
                 default:
-                    fprintf(stderr, "%s", USAGE);
+                    fprintf(stderr, "%s", usage);
                     exit(1);
             }
         } else {
