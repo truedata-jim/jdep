@@ -6,6 +6,7 @@
 
 # C++ compiler
 CPP = g++ -g
+CPPFLAGS = -Wall -Werror -g -O0 -ferror-limit=6
 
 # The directory where built executables go
 BIN_DIR = ./bin
@@ -27,7 +28,7 @@ $(O_DIR):
 	mkdir -p $(O_DIR)
 
 $(O_DIR)/%.o : %.cpp
-	$(CPP) -c -ferror-limit=6 -o $@ $^
+	$(CPP) -c $(CPPFLAGS) -o $@ $^
 
 OBJS = $(O_DIR)/jdep.o \
 	$(O_DIR)/BytesDecoder.o  \
@@ -45,38 +46,12 @@ $(BIN_DIR)/touchp: touchp.sh
 .PHONY: all jdep touchp clean
 
 clean:
-	rm -rf $(BIN_DIR)/jdep $(BIN_DIR)/touchp
-
-EXCLUDES = -e org.springframework
+	rm -rf $(OBJS) $(BIN_DIR)/jdep $(BIN_DIR)/touchp
 
 test: jdep
-	rm -rf testdata/deps/*
-	rm -rf testdata/origdeps/*
-	jdep $(EXCLUDES) -d testdata/deps -c badger_exp/test-classes -j badger_exp/server/test \
-		badger_exp/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
-	origjdep $(EXCLUDES) -d testdata/origdeps -c badger_exp/test-classes -j badger_exp/server/test \
-		badger_exp/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
-	diff -q testdata/deps/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.d \
-	        testdata/origdeps/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.d
-
-	jdep $(EXCLUDES) -d testdata/deps -c badger_exp/server/classes -j badger_exp/server/src \
-		badger_exp/server/classes/com/redsealsys/srm/server/analysis/NetmapWorker.class
-	origjdep $(EXCLUDES) -d testdata/origdeps -c badger_exp/server/classes -j badger_exp/server/src \
-		badger_exp/server/classes/com/redsealsys/srm/server/analysis/NetmapWorker.class
-	diff -q testdata/deps/com/redsealsys/srm/server/analysis/NetmapWorker.d \
-	        testdata/origdeps/com/redsealsys/srm/server/analysis/NetmapWorker.d
-
-	jdep $(EXCLUDES) -d testdata/deps -c badger_exp/server/classes -j badger_exp/server/src \
-		badger_exp/server/classes/com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow.class
-	origjdep $(EXCLUDES) -d testdata/origdeps -c badger_exp/server/classes -j badger_exp/server/src \
-		badger_exp/server/classes/com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow.class
-	diff -q testdata/deps/com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow.d \
-	        testdata/origdeps/com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow.d
-
-
-
-
-
+	./test.sh badger_exp/test-classes badger_exp/server/test com/redsealsys/srm/server/analysis AbstractTestByConfigFile
+	./test.sh badger_exp/server/classes badger_exp/server/src com/redsealsys/srm/server/analysis NetmapWorker
+	./test.sh badger_exp/server/classes badger_exp/server/src com/redsealsys/srm/server/analysis/compactTree CompactTreeTrafficFlow
 
 
 
