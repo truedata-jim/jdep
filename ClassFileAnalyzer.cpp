@@ -11,7 +11,7 @@
 FILE* fopenPath(char* path);
 bool mkdirPath(char* path);
 
-FILE * fopenPath(char* path)
+FILE* fopenPath(char* path)
 {
     char* end = rindex(path, '/');
     if (end) {

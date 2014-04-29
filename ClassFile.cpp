@@ -8,22 +8,6 @@
 
 #include <stdlib.h>
 
-attribute_info* ClassFile::readAttributeInfo(FileReader& reader, attribute_info* atts)
-{
-    uint16_t attribute_name_index = reader.ReadWord();
-    long attribute_length = reader.ReadLong();
-    uint8_t* info = reader.ReadByteArray(attribute_length);
-
-    return new attribute_info(attribute_name_index, attribute_length, info, atts);
-}
-
-attribute_info* ClassFile::readAttributes(FileReader& reader, int count, attribute_info* atts)
-{
-    for (int i=0; i<count; ++i)
-        atts = readAttributeInfo(reader, atts);
-    return atts;
-}
-
 ClassFile::ClassFile(const char* infilename)
 : mConstantPoolCount(0)
 , mConstantPool(0)
@@ -47,6 +31,22 @@ ClassFile::ClassFile(const char* infilename)
     mAttributes = readMethods(reader, methods_count, mAttributes); // methods
     uint16_t attributes_count = reader.ReadWord();
     mAttributes = readAttributes(reader, attributes_count, mAttributes);
+}
+
+attribute_info* ClassFile::readAttributeInfo(FileReader& reader, attribute_info* atts)
+{
+    uint16_t attribute_name_index = reader.ReadWord();
+    long attribute_length = reader.ReadLong();
+    uint8_t* info = reader.ReadByteArray(attribute_length);
+
+    return new attribute_info(attribute_name_index, attribute_length, info, atts);
+}
+
+attribute_info* ClassFile::readAttributes(FileReader& reader, int count, attribute_info* atts)
+{
+    for (int i=0; i<count; ++i)
+        atts = readAttributeInfo(reader, atts);
+    return atts;
 }
 
 void ClassFile::scanAnnotation(BytesDecoder& decoder, ClassFileAnalyzer& analyzer)
@@ -117,11 +117,14 @@ void ClassFile::scanElementValue(BytesDecoder& decoder, ClassFileAnalyzer& analy
 
 void ClassFile::findDepsInFile(const char* target, ClassFileAnalyzer& analyzer)
 {
-    for (int i=0; i < mConstantPoolCount; ++i) {
+    for (int i=0; i < mConstantPoolCount; ++i)
+    {
         cp_info* cp = mConstantPool[i];
-        if (cp && cp->tag == CONSTANT_Class) {
+        if (cp && cp->tag == CONSTANT_Class)
+        {
             const char* name = getClassName(i);
-            if (analyzer.isIncludedClass(name)) {
+            if (analyzer.isIncludedClass(name))
+            {
                 if (name[0] != '[') { /* Skip array classes */
                     char* dollar = index(name, '$');
                     if (dollar) {
