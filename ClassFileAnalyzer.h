@@ -15,21 +15,36 @@ public:
 
     void analyzeClassFile(char* name);
 
-    void includePackage(const string& name) { mIncludedPackages.insert(PackageToPath(name)); }
+    void includePackage(const string& name)
+    {
+        mIncludedPackages.insert(PackageToPath(name));
+    }
 
-    void excludePackage(const string& name) { mExcludedPackages.insert(PackageToPath(name)); }
+    void excludePackage(const string& name)
+    {
+        mExcludedPackages.insert(PackageToPath(name));
+    }
 
     bool addDep(const char* name);
-        // Adds name to the set of known dependencies.
-        // Returns true if this is a new dependency.
+    // Adds name to the set of known dependencies.
+    // Returns true if this is a new dependency.
 
     bool isIncludedClass(const string& name) const;
 
     void findDeps(const char* name);
 
-    void SetJavaRoot(const string& root) { mJavaRoot = SavePath(root); }
-    void SetClassRoot(const string& root) { mClassRoot = SavePath(root); }
-    void SetDepRoot(const string& root) { mDepRoot = SavePath(root); }
+    void SetJavaRoot(const string& root)
+    {
+        mJavaRoot = SavePath(root);
+    }
+    void SetClassRoot(const string& root)
+    {
+        mClassRoot = SavePath(root);
+    }
+    void SetDepRoot(const string& root)
+    {
+        mDepRoot = SavePath(root);
+    }
 
 private:
     typedef set<string> StringSet;

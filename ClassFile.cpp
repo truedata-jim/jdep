@@ -9,9 +9,9 @@
 #include <stdlib.h>
 
 ClassFile::ClassFile(const char* infilename)
-: mConstantPoolCount(0)
-, mConstantPool(0)
-, mAttributes(0)
+    : mConstantPoolCount(0)
+    , mConstantPool(0)
+    , mAttributes(0)
 {
     FileReader reader(infilename);
 
@@ -56,11 +56,13 @@ void ClassFile::scanAnnotation(BytesDecoder& decoder, ClassFileAnalyzer& analyze
     int type_index = decoder.DecodeWord();
 
     const char* name = getClassName(type_index);
-    if (analyzer.isIncludedClass(name)) {
+    if (analyzer.isIncludedClass(name))
+    {
         analyzer.addDep(name);
     }
     int num_element_value_pairs = decoder.DecodeWord();
-    for (i = 0; i < num_element_value_pairs; ++i) {
+    for (i = 0; i < num_element_value_pairs; ++i)
+    {
         int element_name_index = decoder.DecodeWord();
         scanElementValue(decoder, analyzer);
     }
@@ -69,49 +71,58 @@ void ClassFile::scanAnnotation(BytesDecoder& decoder, ClassFileAnalyzer& analyze
 void ClassFile::scanElementValue(BytesDecoder& decoder, ClassFileAnalyzer& analyzer)
 {
     uint8_t tag = decoder.DecodeByte();
-    switch (tag) {
-        case 'B':
-        case 'C':
-        case 'D':
-        case 'F':
-        case 'I':
-        case 'J':
-        case 'S':
-        case 'Z': {
-            int const_value_index = decoder.DecodeWord();
-            break;
+    switch (tag)
+    {
+    case 'B':
+    case 'C':
+    case 'D':
+    case 'F':
+    case 'I':
+    case 'J':
+    case 'S':
+    case 'Z':
+    {
+        int const_value_index = decoder.DecodeWord();
+        break;
+    }
+    case 's':
+    {
+        int const_value_index = decoder.DecodeWord();
+        break;
+    }
+    case 'c':
+    {
+        int class_info_index = decoder.DecodeWord();
+        break;
+    }
+    case 'e':
+    {
+        int type_name_index = decoder.DecodeWord();
+        const char* name = getClassName(type_name_index);
+        int const_name_index = decoder.DecodeWord();
+        if (analyzer.isIncludedClass(name))
+        {
+            analyzer.addDep(name);
         }
-        case 's': {
-            int const_value_index = decoder.DecodeWord();
-            break;
+        break;
+    }
+    case '@':
+    {
+        scanAnnotation(decoder, analyzer);
+        break;
+    }
+    case '[':
+    {
+        int num_values = decoder.DecodeWord();
+        int i;
+        for (i = 0; i < num_values; ++i)
+        {
+            scanElementValue(decoder, analyzer);
         }
-        case 'c': {
-            int class_info_index = decoder.DecodeWord();
-            break;
-        }
-        case 'e': {
-            int type_name_index = decoder.DecodeWord();
-            const char* name = getClassName(type_name_index);
-            int const_name_index = decoder.DecodeWord();
-            if (analyzer.isIncludedClass(name)) {
-                analyzer.addDep(name);
-            }
-            break;
-        }
-        case '@': {
-            scanAnnotation(decoder, analyzer);
-            break;
-        }
-        case '[': {
-            int num_values = decoder.DecodeWord();
-            int i;
-            for (i = 0; i < num_values; ++i) {
-                scanElementValue(decoder, analyzer);
-            }
-            break;
-        }
-        default:
-            break;
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -125,26 +136,34 @@ void ClassFile::findDepsInFile(const char* target, ClassFileAnalyzer& analyzer)
             const char* name = getClassName(i);
             if (analyzer.isIncludedClass(name))
             {
-                if (name[0] != '[') { /* Skip array classes */
+                if (name[0] != '[')   /* Skip array classes */
+                {
                     char* dollar = index(name, '$');
-                    if (dollar) {
+                    if (dollar)
+                    {
                         /* It's an inner class */
-                        if (strncmp(name, target, dollar-name) == 0) {
-                                /* It's one of target's inner classes, so we
-                                   depend on whatever *it* depends on and thus
-                                   we need to recurse. */
+                        if (strncmp(name, target, dollar-name) == 0)
+                        {
+                            /* It's one of target's inner classes, so we
+                               depend on whatever *it* depends on and thus
+                               we need to recurse. */
                             bool added = analyzer.addDep(name);
-                            if (added) {
+                            if (added)
+                            {
                                 analyzer.findDeps(name);    // Recurses here!!
                             }
-                        } else {
-                                /* It's somebody else's inner class, so we
-                                   depend on its outer class source file */
+                        }
+                        else
+                        {
+                            /* It's somebody else's inner class, so we
+                               depend on its outer class source file */
                             *dollar = '\0';
                             analyzer.addDep(name);
                             *dollar = '$';
                         }
-                    } else {
+                    }
+                    else
+                    {
                         /* It's a regular class */
                         analyzer.addDep(name);
                     }
@@ -154,13 +173,16 @@ void ClassFile::findDepsInFile(const char* target, ClassFileAnalyzer& analyzer)
     }
 
     attribute_info* att = mAttributes;
-    while (att != NULL) {
+    while (att != NULL)
+    {
         const char* name = getString(att->attribute_name_index);
-        if (strcmp(name, "RuntimeVisibleAnnotations") == 0) {
+        if (strcmp(name, "RuntimeVisibleAnnotations") == 0)
+        {
             int i;
             BytesDecoder decoder(att->info, att->attribute_length);
             int num_annotations = decoder.DecodeWord();
-            for (i = 0; i < num_annotations; ++i) {
+            for (i = 0; i < num_annotations; ++i)
+            {
                 scanAnnotation(decoder, analyzer);
             }
         }
@@ -173,9 +195,11 @@ cp_info** ClassFile::readConstantPool(FileReader& reader, const char* filename, 
     cp_info** result = new cp_info*[count];
     int i;
     result[0] = NULL;
-    for (i=1; i<count; ++i) {
+    for (i=1; i<count; ++i)
+    {
         result[i] = readConstantPoolInfo(reader, filename);
-        if (result[i] == kLongTag) {
+        if (result[i] == kLongTag)
+        {
             result[i] = NULL;
             result[++i] = NULL;
         }
@@ -186,64 +210,76 @@ cp_info** ClassFile::readConstantPool(FileReader& reader, const char* filename, 
 cp_info* ClassFile::readConstantPoolInfo(FileReader& reader, const char* filename)
 {
     uint8_t tag = reader.ReadByte();
-    switch (tag) {
-        case CONSTANT_Class:{
-            uint16_t name_index = reader.ReadWord();
-            return new constant_class_info(name_index);
-        }
-        case CONSTANT_Fieldref:{
-            reader.ReadWord(); // class_index
-            reader.ReadWord(); // name_and_type_index
-            return NULL;
-        }
-        case CONSTANT_Methodref:{
-            reader.ReadWord(); // class_index
-            reader.ReadWord(); // name_and_type_index
-            return NULL;
-        }
-        case CONSTANT_InterfaceMethodref:{
-            reader.ReadWord(); // class_index
-            reader.ReadWord(); // name_and_type_index
-            return NULL;
-        }
-        case CONSTANT_String:{
-            reader.ReadWord(); // string_index
-            return NULL;
-        }
-        case CONSTANT_Integer:{
-            reader.ReadLong(); // bytes
-            return NULL;
-        }
-        case CONSTANT_Float:{
-            reader.ReadLong(); // bytes
-            return NULL;
-        }
-        case CONSTANT_Long:{
-            reader.ReadLong(); // high_bytes
-            reader.ReadLong(); // low_bytes
-            return kLongTag;
-        }
-        case CONSTANT_Double:{
-            reader.ReadLong(); // high_bytes
-            reader.ReadLong(); // low_bytes
-            return kLongTag;
-        }
-        case CONSTANT_NameAndType:{
-            reader.ReadWord(); // name_index
-            reader.ReadWord(); // descriptor_index
-            return NULL;
-        }
-        case CONSTANT_Utf8:{
-            uint16_t length = reader.ReadWord();
-            char* str = (char* ) reader.ReadByteArray(length);
-            return new constant_utf8_info(str);
-        }
-        default:
-        {
-            fprintf(stderr, "invalid constant pool tag %d in %s\n", tag,
-                    filename);
-            exit(1);
-        }
+    switch (tag)
+    {
+    case CONSTANT_Class:
+    {
+        uint16_t name_index = reader.ReadWord();
+        return new constant_class_info(name_index);
+    }
+    case CONSTANT_Fieldref:
+    {
+        reader.ReadWord(); // class_index
+        reader.ReadWord(); // name_and_type_index
+        return NULL;
+    }
+    case CONSTANT_Methodref:
+    {
+        reader.ReadWord(); // class_index
+        reader.ReadWord(); // name_and_type_index
+        return NULL;
+    }
+    case CONSTANT_InterfaceMethodref:
+    {
+        reader.ReadWord(); // class_index
+        reader.ReadWord(); // name_and_type_index
+        return NULL;
+    }
+    case CONSTANT_String:
+    {
+        reader.ReadWord(); // string_index
+        return NULL;
+    }
+    case CONSTANT_Integer:
+    {
+        reader.ReadLong(); // bytes
+        return NULL;
+    }
+    case CONSTANT_Float:
+    {
+        reader.ReadLong(); // bytes
+        return NULL;
+    }
+    case CONSTANT_Long:
+    {
+        reader.ReadLong(); // high_bytes
+        reader.ReadLong(); // low_bytes
+        return kLongTag;
+    }
+    case CONSTANT_Double:
+    {
+        reader.ReadLong(); // high_bytes
+        reader.ReadLong(); // low_bytes
+        return kLongTag;
+    }
+    case CONSTANT_NameAndType:
+    {
+        reader.ReadWord(); // name_index
+        reader.ReadWord(); // descriptor_index
+        return NULL;
+    }
+    case CONSTANT_Utf8:
+    {
+        uint16_t length = reader.ReadWord();
+        char* str = (char* ) reader.ReadByteArray(length);
+        return new constant_utf8_info(str);
+    }
+    default:
+    {
+        fprintf(stderr, "invalid constant pool tag %d in %s\n", tag,
+                filename);
+        exit(1);
+    }
     }
     return NULL;
 }
@@ -260,7 +296,8 @@ attribute_info* ClassFile::readFieldInfo(FileReader& reader, attribute_info* att
 attribute_info* ClassFile::readFields(FileReader& reader, int count, attribute_info* atts)
 {
     int i;
-    for (i=0; i<count; ++i) {
+    for (i=0; i<count; ++i)
+    {
         atts = readFieldInfo(reader, atts);
     }
     return atts;
@@ -292,7 +329,8 @@ const char* ClassFile::getString(int index) const
 {
     cp_info* cp = mConstantPool[index];
     cp = mConstantPool[index];
-    if (cp->tag == CONSTANT_Utf8) {
+    if (cp->tag == CONSTANT_Utf8)
+    {
         const char* name = ((constant_utf8_info*) cp)->str;
         return name;
     }
@@ -302,18 +340,26 @@ const char* ClassFile::getString(int index) const
 const char* ClassFile::getClassName(int index) const
 {
     cp_info* cp = mConstantPool[index];
-    if (cp == NULL) {
+    if (cp == NULL)
+    {
         return NULL;
-    } else if (cp->tag == CONSTANT_Class) {
+    }
+    else if (cp->tag == CONSTANT_Class)
+    {
         constant_class_info* classInfo = (constant_class_info*) cp;
         return getString(classInfo->name_index);
-    } else if (cp->tag == CONSTANT_Utf8) {
+    }
+    else if (cp->tag == CONSTANT_Utf8)
+    {
         char* name = ((constant_utf8_info*) cp)->str;
-        if (name[0] == 'L') {
+        if (name[0] == 'L')
+        {
             char* result = strdup(name + 1);
             char* s = result;
-            while (*s) {
-                if (*s == ';') {
+            while (*s)
+            {
+                if (*s == ';')
+                {
                     *s = '\0';
                     break;
                 }

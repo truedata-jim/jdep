@@ -4,8 +4,8 @@
 #include <assert.h>
 
 BytesDecoder::BytesDecoder(const uint8_t* bytes, long length)
-: mCursor(bytes)
-, mLimit(bytes+length)
+    : mCursor(bytes)
+    , mLimit(bytes+length)
 {
 }
 

@@ -6,7 +6,8 @@
 
 bool testEndianism()
 {
-    union {
+    union
+    {
         uint16_t asWord;
         uint8_t asBytes[2];
     } tester;
@@ -20,7 +21,8 @@ void reverseBytes(char *data, int length)
     char temp;
     int i;
 
-    for (i = 0; i<length/2; ++i) {
+    for (i = 0; i<length/2; ++i)
+    {
         temp = data[i];
         data[i] = data[length-1-i];
         data[length-1-i] = temp;
@@ -30,7 +32,7 @@ void reverseBytes(char *data, int length)
 static bool gLittleEndian = testEndianism();
 
 FileReader::FileReader(const char* path)
-: mFile(fopen(path, "rb"))
+    : mFile(fopen(path, "rb"))
 {
     if (!mFile)
     {
@@ -49,7 +51,8 @@ uint32_t FileReader::ReadLong()
 {
     uint32_t result;
     fread((char *)&result, 4, 1, mFile);
-    if (gLittleEndian) {
+    if (gLittleEndian)
+    {
         reverseBytes((char *)&result, 4);
     }
     return result;
@@ -59,7 +62,8 @@ uint16_t FileReader::ReadWord()
 {
     uint16_t result;
     fread((char *)&result, 2, 1, mFile);
-    if (gLittleEndian) {
+    if (gLittleEndian)
+    {
         reverseBytes((char *)&result, 2);
     }
     return result;

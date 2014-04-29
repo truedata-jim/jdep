@@ -16,7 +16,8 @@
 #define CONSTANT_String                  8
 #define CONSTANT_Utf8                    1
 
-struct cp_info {
+struct cp_info
+{
     int tag;            /* CONSTANT_xxxx */
 
     cp_info(int _tag) : tag(_tag) {}
@@ -24,30 +25,33 @@ struct cp_info {
 
 cp_info* const kLongTag = ((cp_info*) -1);
 
-struct constant_class_info : public cp_info {
+struct constant_class_info : public cp_info
+{
     uint16_t name_index;
 
     constant_class_info(uint16_t index) : cp_info(CONSTANT_Class), name_index(index) {}
 };
 
-struct constant_utf8_info  : public cp_info {
+struct constant_utf8_info  : public cp_info
+{
     char* str;
 
     constant_utf8_info(char* _str) : cp_info(CONSTANT_Utf8), str(_str) {}
 };
 
-struct attribute_info {
+struct attribute_info
+{
     uint16_t attribute_name_index;
     long attribute_length;
     uint8_t* info;
     attribute_info* next;
 
     attribute_info(uint16_t _attribute_name_index, long _attribute_length
-                 , uint8_t* _info, attribute_info* _next)
-    : attribute_name_index(_attribute_name_index)
-    , attribute_length(_attribute_length)
-    , info(_info)
-    , next(_next)
+                   , uint8_t* _info, attribute_info* _next)
+        : attribute_name_index(_attribute_name_index)
+        , attribute_length(_attribute_length)
+        , info(_info)
+        , next(_next)
     {}
 };
 

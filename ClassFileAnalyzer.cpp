@@ -14,7 +14,8 @@ bool mkdirPath(char* path);
 FILE* fopenPath(char* path)
 {
     char* end = rindex(path, '/');
-    if (end) {
+    if (end)
+    {
         *end = '\0';
         mkdirPath(path);
         *end = '/';
@@ -27,24 +28,32 @@ bool mkdirPath(char* path)
     char* slashptr = path;
     DIR* dyr;
 
-    while ((slashptr = strchr(slashptr + 1, '/'))) {
+    while ((slashptr = strchr(slashptr + 1, '/')))
+    {
         *slashptr = '\0';
         dyr = opendir(path);
-        if (dyr) {
+        if (dyr)
+        {
             closedir(dyr);
-        } else if (mkdir(path, S_IRWXU) < 0) {
+        }
+        else if (mkdir(path, S_IRWXU) < 0)
+        {
             *slashptr = '/';
             return true;
         }
         *slashptr = '/';
-        if (slashptr[1] == '\0') {
+        if (slashptr[1] == '\0')
+        {
             /* Just ignore a trailing slash */
             return false;
         }
     }
-    if (mkdir(path, S_IRWXU) < 0) {
+    if (mkdir(path, S_IRWXU) < 0)
+    {
         return true;
-    } else {
+    }
+    else
+    {
         return false;
     }
 }
@@ -63,7 +72,8 @@ void ClassFileAnalyzer::analyzeClassFile(char* name)
     int i;
 
     char* match = strstr(name, ".class");
-    if (match && strlen(match) == 6 /* strlen(".class") */) {
+    if (match && strlen(match) == 6 /* strlen(".class") */)
+    {
         /* Chop off the trailing ".class" if it's there */
         *match = '\0';
     }
@@ -71,7 +81,8 @@ void ClassFileAnalyzer::analyzeClassFile(char* name)
     if (mClassRoot != "")
     {
         const char* root = mClassRoot.c_str();
-        if (strncmp(name, root, mClassRoot.length())) {
+        if (strncmp(name, root, mClassRoot.length()))
+        {
             fprintf(stderr, "%s.class does not match class root path %s\n",
                     name, root);
             exit(1);
@@ -83,18 +94,22 @@ void ClassFileAnalyzer::analyzeClassFile(char* name)
 
     snprintf(outfilename, sizeof(outfilename), "%s%s.d", mDepRoot.c_str(), name);
     outfyle = fopenPath(outfilename);
-    if (outfyle) {
+    if (outfyle)
+    {
         fprintf(outfyle, "%s%s.class: \\\n", mClassRoot.c_str(), name);
         for (StringSet::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
         {
             const char* dep = it->c_str();
-            if (index(dep, '$') == NULL) {
+            if (index(dep, '$') == NULL)
+            {
                 fprintf(outfyle, "  %s%s.java \\\n", mJavaRoot.c_str(), dep);
             }
         }
         fprintf(outfyle, "\n");
         fclose(outfyle);
-    } else {
+    }
+    else
+    {
         fprintf(stderr, "unable to open output file %s", outfilename);
     }
 }

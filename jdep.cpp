@@ -42,77 +42,98 @@ int main(int argc, char* argv[])
 
     ClassFileAnalyzer analyzer;
 
-    for (i = 1; i < argc; ++i) {
-        if (argv[i][0] == '-') {
-            switch (argv[i][1]) {
-                case 'a':
-                    excludeLibraryPackages = false;
-                    break;
-                case 'c':
-                    if (argv[i][2]) {
-                        p = &argv[i][2];
-                    } else {
-                        ++i;
-                        p = argv[i];
-                    }
-                    analyzer.SetClassRoot(p);
-                    break;
-                case 'd':
-                    if (argv[i][2]) {
-                        p = &argv[i][2];
-                    } else {
-                        ++i;
-                        p = argv[i];
-                    }
-                    analyzer.SetDepRoot(p);
-                    break;
-                case 'e':
-                    if (argv[i][2]) {
-                        p = &argv[i][2];
-                    } else {
-                        ++i;
-                        p = argv[i];
-                    }
-                    analyzer.excludePackage(p);
-                    break;
-                case 'i':
-                    if (argv[i][2]) {
-                        p = &argv[i][2];
-                    } else {
-                        ++i;
-                        p = argv[i];
-                    }
-                    analyzer.includePackage(p);
-                    break;
-                case 'j':
-                    if (argv[i][2]) {
-                        p = &argv[i][2];
-                    } else {
-                        ++i;
-                        p = argv[i];
-                    }
-                    analyzer.SetJavaRoot(p);
-                    break;
-                case 'h':
+    for (i = 1; i < argc; ++i)
+    {
+        if (argv[i][0] == '-')
+        {
+            switch (argv[i][1])
+            {
+            case 'a':
+                excludeLibraryPackages = false;
+                break;
+            case 'c':
+                if (argv[i][2])
                 {
-                    printf("%s", usage);
-                    printf("options:\n");
-                    printf("-a          Include java.* packages in dependencies\n");
-                    printf("-e PACKAGE  Exclude PACKAGE from dependencies\n");
-                    printf("-i PACKAGE  Include PACKAGE in dependencies\n");
-                    printf("-h          Print this helpful help message\n");
-                    printf("-d DPATH    Use DPATH as base directory for output .d files\n");
-                    printf("-c CPATH    Use CPATH as base directory for .class files\n");
-                    printf("-j JPATH    Use JPATH as base directory for .java files in dependency lines\n");
-                    printf("file        Name of a class file to examine\n");
-                    exit(0);
+                    p = &argv[i][2];
                 }
-                default:
-                    fprintf(stderr, "%s", usage);
-                    exit(1);
+                else
+                {
+                    ++i;
+                    p = argv[i];
+                }
+                analyzer.SetClassRoot(p);
+                break;
+            case 'd':
+                if (argv[i][2])
+                {
+                    p = &argv[i][2];
+                }
+                else
+                {
+                    ++i;
+                    p = argv[i];
+                }
+                analyzer.SetDepRoot(p);
+                break;
+            case 'e':
+                if (argv[i][2])
+                {
+                    p = &argv[i][2];
+                }
+                else
+                {
+                    ++i;
+                    p = argv[i];
+                }
+                analyzer.excludePackage(p);
+                break;
+            case 'i':
+                if (argv[i][2])
+                {
+                    p = &argv[i][2];
+                }
+                else
+                {
+                    ++i;
+                    p = argv[i];
+                }
+                analyzer.includePackage(p);
+                break;
+            case 'j':
+                if (argv[i][2])
+                {
+                    p = &argv[i][2];
+                }
+                else
+                {
+                    ++i;
+                    p = argv[i];
+                }
+                analyzer.SetJavaRoot(p);
+                break;
+            case 'h':
+            {
+                printf("%s", usage);
+                printf("options:\n");
+                printf("-a          Include java.* packages in dependencies\n");
+                printf("-e PACKAGE  Exclude PACKAGE from dependencies\n");
+                printf("-i PACKAGE  Include PACKAGE in dependencies\n");
+                printf("-h          Print this helpful help message\n");
+                printf("-d DPATH    Use DPATH as base directory for output .d files\n");
+                printf("-c CPATH    Use CPATH as base directory for .class files\n");
+                printf("-j JPATH    Use JPATH as base directory for .java files in dependency lines\n");
+                printf("file        Name of a class file to examine\n");
+                exit(0);
             }
-        } else {
-            if (excludeLibraryPackages) {
+            default:
+                fprintf(stderr, "%s", usage);
+                exit(1);
+            }
+        }
+        else
+        {
+            if (excludeLibraryPackages)
+            {
                 analyzer.excludePackage("java");
                 analyzer.excludePackage("javax");
                 analyzer.excludePackage("com.sun");
