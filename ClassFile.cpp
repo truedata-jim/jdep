@@ -57,9 +57,7 @@ void ClassFile::scanAnnotation(BytesDecoder& decoder, ClassFileAnalyzer& analyze
 
     const char* name = getClassName(type_index);
     if (analyzer.isIncludedClass(name))
-    {
         analyzer.addDep(name);
-    }
     int num_element_value_pairs = decoder.DecodeWord();
     for (i = 0; i < num_element_value_pairs; ++i)
     {
@@ -73,56 +71,52 @@ void ClassFile::scanElementValue(BytesDecoder& decoder, ClassFileAnalyzer& analy
     uint8_t tag = decoder.DecodeByte();
     switch (tag)
     {
-    case 'B':
-    case 'C':
-    case 'D':
-    case 'F':
-    case 'I':
-    case 'J':
-    case 'S':
-    case 'Z':
-    {
-        int const_value_index = decoder.DecodeWord();
-        break;
-    }
-    case 's':
-    {
-        int const_value_index = decoder.DecodeWord();
-        break;
-    }
-    case 'c':
-    {
-        int class_info_index = decoder.DecodeWord();
-        break;
-    }
-    case 'e':
-    {
-        int type_name_index = decoder.DecodeWord();
-        const char* name = getClassName(type_name_index);
-        int const_name_index = decoder.DecodeWord();
-        if (analyzer.isIncludedClass(name))
+        case 'B':
+        case 'C':
+        case 'D':
+        case 'F':
+        case 'I':
+        case 'J':
+        case 'S':
+        case 'Z':
         {
-            analyzer.addDep(name);
+            int const_value_index = decoder.DecodeWord();
+            break;
         }
-        break;
-    }
-    case '@':
-    {
-        scanAnnotation(decoder, analyzer);
-        break;
-    }
-    case '[':
-    {
-        int num_values = decoder.DecodeWord();
-        int i;
-        for (i = 0; i < num_values; ++i)
+        case 's':
         {
-            scanElementValue(decoder, analyzer);
+            int const_value_index = decoder.DecodeWord();
+            break;
         }
-        break;
-    }
-    default:
-        break;
+        case 'c':
+        {
+            int class_info_index = decoder.DecodeWord();
+            break;
+        }
+        case 'e':
+        {
+            int type_name_index = decoder.DecodeWord();
+            const char* name = getClassName(type_name_index);
+            int const_name_index = decoder.DecodeWord();
+            if (analyzer.isIncludedClass(name))
+                analyzer.addDep(name);
+            break;
+        }
+        case '@':
+        {
+            scanAnnotation(decoder, analyzer);
+            break;
+        }
+        case '[':
+        {
+            int num_values = decoder.DecodeWord();
+            int i;
+            for (i = 0; i < num_values; ++i)
+                scanElementValue(decoder, analyzer);
+            break;
+        }
+        default:
+            break;
     }
 }
 
@@ -182,9 +176,7 @@ void ClassFile::findDepsInFile(const char* target, ClassFileAnalyzer& analyzer)
             BytesDecoder decoder(att->info, att->attribute_length);
             int num_annotations = decoder.DecodeWord();
             for (i = 0; i < num_annotations; ++i)
-            {
                 scanAnnotation(decoder, analyzer);
-            }
         }
         att = att->next;
     }
@@ -212,74 +204,74 @@ cp_info* ClassFile::readConstantPoolInfo(FileReader& reader, const char* filenam
     uint8_t tag = reader.ReadByte();
     switch (tag)
     {
-    case CONSTANT_Class:
-    {
-        uint16_t name_index = reader.ReadWord();
-        return new constant_class_info(name_index);
-    }
-    case CONSTANT_Fieldref:
-    {
-        reader.ReadWord(); // class_index
-        reader.ReadWord(); // name_and_type_index
-        return NULL;
-    }
-    case CONSTANT_Methodref:
-    {
-        reader.ReadWord(); // class_index
-        reader.ReadWord(); // name_and_type_index
-        return NULL;
-    }
-    case CONSTANT_InterfaceMethodref:
-    {
-        reader.ReadWord(); // class_index
-        reader.ReadWord(); // name_and_type_index
-        return NULL;
-    }
-    case CONSTANT_String:
-    {
-        reader.ReadWord(); // string_index
-        return NULL;
-    }
-    case CONSTANT_Integer:
-    {
-        reader.ReadLong(); // bytes
-        return NULL;
-    }
-    case CONSTANT_Float:
-    {
-        reader.ReadLong(); // bytes
-        return NULL;
-    }
-    case CONSTANT_Long:
-    {
-        reader.ReadLong(); // high_bytes
-        reader.ReadLong(); // low_bytes
-        return kLongTag;
-    }
-    case CONSTANT_Double:
-    {
-        reader.ReadLong(); // high_bytes
-        reader.ReadLong(); // low_bytes
-        return kLongTag;
-    }
-    case CONSTANT_NameAndType:
-    {
-        reader.ReadWord(); // name_index
-        reader.ReadWord(); // descriptor_index
-        return NULL;
-    }
-    case CONSTANT_Utf8:
-    {
-        uint16_t length = reader.ReadWord();
-        char* str = (char* ) reader.ReadByteArray(length);
-        return new constant_utf8_info(str);
-    }
-    default:
-    {
-        fprintf(stderr, "invalid constant pool tag %d in %s\n", tag,
-                filename);
-        exit(1);
-    }
+        case CONSTANT_Class:
+        {
+            uint16_t name_index = reader.ReadWord();
+            return new constant_class_info(name_index);
+        }
+        case CONSTANT_Fieldref:
+        {
+            reader.ReadWord(); // class_index
+            reader.ReadWord(); // name_and_type_index
+            return NULL;
+        }
+        case CONSTANT_Methodref:
+        {
+            reader.ReadWord(); // class_index
+            reader.ReadWord(); // name_and_type_index
+            return NULL;
+        }
+        case CONSTANT_InterfaceMethodref:
+        {
+            reader.ReadWord(); // class_index
+            reader.ReadWord(); // name_and_type_index
+            return NULL;
+        }
+        case CONSTANT_String:
+        {
+            reader.ReadWord(); // string_index
+            return NULL;
+        }
+        case CONSTANT_Integer:
+        {
+            reader.ReadLong(); // bytes
+            return NULL;
+        }
+        case CONSTANT_Float:
+        {
+            reader.ReadLong(); // bytes
+            return NULL;
+        }
+        case CONSTANT_Long:
+        {
+            reader.ReadLong(); // high_bytes
+            reader.ReadLong(); // low_bytes
+            return kLongTag;
+        }
+        case CONSTANT_Double:
+        {
+            reader.ReadLong(); // high_bytes
+            reader.ReadLong(); // low_bytes
+            return kLongTag;
+        }
+        case CONSTANT_NameAndType:
+        {
+            reader.ReadWord(); // name_index
+            reader.ReadWord(); // descriptor_index
+            return NULL;
+        }
+        case CONSTANT_Utf8:
+        {
+            uint16_t length = reader.ReadWord();
+            char* str = (char*) reader.ReadByteArray(length);
+            return new constant_utf8_info(str);
+        }
+        default:
+        {
+            fprintf(stderr, "invalid constant pool tag %d in %s\n", tag,
+                    filename);
+            exit(1);
+        }
     }
     return NULL;
 }
@@ -297,9 +289,7 @@ attribute_info* ClassFile::readFields(FileReader& reader, int count, attribute_i
 {
     int i;
     for (i=0; i<count; ++i)
-    {
         atts = readFieldInfo(reader, atts);
-    }
     return atts;
 }
 
@@ -312,7 +302,7 @@ attribute_info* ClassFile::readMethodInfo(FileReader& reader, attribute_info* at
     return readAttributes(reader, attributes_count, atts);
 }
 
-attribute_info * ClassFile::readMethods(FileReader& reader, int count, attribute_info* atts)
+attribute_info* ClassFile::readMethods(FileReader& reader, int count, attribute_info* atts)
 {
     for (int i = 0; i < count; ++i)
         atts = readMethodInfo(reader, atts);
@@ -341,9 +331,7 @@ const char* ClassFile::getClassName(int index) const
 {
     cp_info* cp = mConstantPool[index];
     if (cp == NULL)
-    {
         return NULL;
-    }
     else if (cp->tag == CONSTANT_Class)
     {
         constant_class_info* classInfo = (constant_class_info*) cp;

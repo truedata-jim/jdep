@@ -33,9 +33,7 @@ bool mkdirPath(char* path)
         *slashptr = '\0';
         dyr = opendir(path);
         if (dyr)
-        {
             closedir(dyr);
-        }
         else if (mkdir(path, S_IRWXU) < 0)
         {
             *slashptr = '/';
@@ -49,13 +47,9 @@ bool mkdirPath(char* path)
         }
     }
     if (mkdir(path, S_IRWXU) < 0)
-    {
         return true;
-    }
     else
-    {
         return false;
-    }
 }
 
 bool ClassFileAnalyzer::addDep(const char* name)
@@ -101,17 +95,13 @@ void ClassFileAnalyzer::analyzeClassFile(char* name)
         {
             const char* dep = it->c_str();
             if (index(dep, '$') == NULL)
-            {
                 fprintf(outfyle, "  %s%s.java \\\n", mJavaRoot.c_str(), dep);
-            }
         }
         fprintf(outfyle, "\n");
         fclose(outfyle);
     }
     else
-    {
         fprintf(stderr, "unable to open output file %s", outfilename);
-    }
 }
 
 string ClassFileAnalyzer::PackageToPath(const string& name)
