@@ -51,17 +51,14 @@ attribute_info* ClassFile::readAttributes(FileReader& reader, int count, attribu
 
 void ClassFile::scanAnnotation(BytesDecoder& decoder, ClassFileAnalyzer& analyzer)
 {
-    int i;
-
     int type_index = decoder.DecodeWord();
-
     const char* name = getClassName(type_index);
     if (analyzer.isIncludedClass(name))
         analyzer.addDep(name);
     int num_element_value_pairs = decoder.DecodeWord();
-    for (i = 0; i < num_element_value_pairs; ++i)
+    for (int i = 0; i < num_element_value_pairs; ++i)
     {
-        int element_name_index = decoder.DecodeWord();
+        decoder.DecodeWord(); // skip over element_name_index
         scanElementValue(decoder, analyzer);
     }
 }
@@ -80,24 +77,24 @@ void ClassFile::scanElementValue(BytesDecoder& decoder, ClassFileAnalyzer& analy
         case 'S':
         case 'Z':
         {
-            int const_value_index = decoder.DecodeWord();
+            decoder.DecodeWord(); // skip over const_value_index
             break;
         }
         case 's':
         {
-            int const_value_index = decoder.DecodeWord();
+            decoder.DecodeWord(); // skip over const_value_index
             break;
         }
         case 'c':
         {
-            int class_info_index = decoder.DecodeWord();
+            decoder.DecodeWord(); // skip over class_info_index
             break;
         }
         case 'e':
         {
             int type_name_index = decoder.DecodeWord();
             const char* name = getClassName(type_name_index);
-            int const_name_index = decoder.DecodeWord();
+            decoder.DecodeWord(); // skip over const_name_index
             if (analyzer.isIncludedClass(name))
                 analyzer.addDep(name);
             break;

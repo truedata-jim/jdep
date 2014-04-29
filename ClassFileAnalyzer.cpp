@@ -63,7 +63,6 @@ void ClassFileAnalyzer::analyzeClassFile(char* name)
 {
     FILE* outfyle;
     char outfilename[1000];
-    int i;
 
     char* match = strstr(name, ".class");
     if (match && strlen(match) == 6 /* strlen(".class") */)
@@ -115,11 +114,8 @@ string ClassFileAnalyzer::PackageToPath(const string& name)
 
 void ClassFileAnalyzer::findDeps(const char* name)
 {
-    FILE* infyle;
-    char infilename[1000];
-
     fprintf(stderr, "Analyzing %s\n", name);
-
+    char infilename[1000];
     snprintf(infilename, sizeof(infilename), "%s%s.class", mClassRoot.c_str(), name);
     ClassFile classFile(infilename);
     classFile.findDepsInFile(name, *this);
