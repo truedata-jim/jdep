@@ -1,0 +1,21 @@
+.gitignore
+
+INCLUDES += -I../../
+
+ifeq (@(TUP_PLATFORM),macosx)
+    # We can use either gcc or clang.
+    # For gcc, we currently assume gcc 4.9 installed via homebrew:
+    # brew tap homebrew/versions && brew install gcc49.
+    # G++BIN = g++-4.9 -std=gnu++11
+    G++BIN = clang++
+endif
+ifeq (@(TUP_PLATFORM),linux)
+    G++BIN = g++ -std=gnu++11 -pthread
+endif
+
+CPPLIB = -lstdc++
+LIBRARIES =
+
+!cpp = |> $(G++BIN) -Wall -Werror -g -O0 -c %f -o %o $(INCLUDES) |>
+!link = |> $(G++BIN) -g -O0 %f -o %o $(CPPLIB) $(LIBRARIES) |> %d
+
