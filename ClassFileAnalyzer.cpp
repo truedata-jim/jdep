@@ -118,6 +118,8 @@ void ClassFileAnalyzer::findDeps(const char* name)
     FILE* infyle;
     char infilename[1000];
 
+    fprintf(stderr, "Analyzing %s\n", name);
+
     snprintf(infilename, sizeof(infilename), "%s%s.class", mClassRoot.c_str(), name);
     ClassFile classFile(infilename);
     classFile.findDepsInFile(name, *this);
