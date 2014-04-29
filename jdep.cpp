@@ -46,11 +46,6 @@
 using std::string;
 using std::set;
 
-#define FREE(p)    free(p)
-#define ALLOC(n)   malloc(n)
-
-#define TYPE_ALLOC(type)          ((type *) ALLOC(sizeof(type)))
-
 #define CONSTANT_Class                   7
 #define CONSTANT_Double                  6
 #define CONSTANT_Fieldref                9
@@ -308,6 +303,85 @@ bool ClassFileAnalyzer::isIncludedClass(const string& name) const
     return true;
 }
 
+FILE * fopenPath(char* path)
+{
+    char* end = rindex(path, '/');
+    if (end) {
+        *end = '\0';
+        mkdirPath(path);
+        *end = '/';
+    }
+    return fopen(path, "w");
+}
+
+bool mkdirPath(char* path)
+{
+    char* slashptr = path;
+    DIR* dyr;
+
+    while ((slashptr = strchr(slashptr + 1, '/'))) {
+        *slashptr = '\0';
+        dyr = opendir(path);
+        if (dyr) {
+            closedir(dyr);
+        } else if (mkdir(path, S_IRWXU) < 0) {
+            *slashptr = '/';
+            return true;
+        }
+        *slashptr = '/';
+        if (slashptr[1] == '\0') {
+            /* Just ignore a trailing slash */
+            return false;
+        }
+    }
+    if (mkdir(path, S_IRWXU) < 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+attribute_info* ClassFile::readAttributeInfo(FileReader& reader, attribute_info* atts)
+{
+    uint16_t attribute_name_index = reader.ReadWord();
+    long attribute_length = reader.ReadLong();
+    uint8_t* info = reader.ReadByteArray(attribute_length);
+
+    return new attribute_info(attribute_name_index, attribute_length, info, atts);
+}
+
+attribute_info* ClassFile::readAttributes(FileReader& reader, int count, attribute_info* atts)
+{
+    for (int i=0; i<count; ++i)
+        atts = readAttributeInfo(reader, atts);
+    return atts;
+}
+
+ClassFile::ClassFile(const char* infilename)
+: mConstantPoolCount(0)
+, mConstantPool(0)
+, mAttributes(0)
+{
+    FileReader reader(infilename);
+
+    reader.ReadLong(); // magic
+    reader.ReadWord(); // minor_version
+    reader.ReadWord(); // major_version
+    mConstantPoolCount = reader.ReadWord();
+    mConstantPool = readConstantPool(reader, infilename, mConstantPoolCount);
+    reader.ReadWord(); // access_flags
+    reader.ReadWord(); // this_class
+    reader.ReadWord(); // super_class
+    uint16_t interfaces_count = reader.ReadWord();
+    skipWordArray(reader, interfaces_count); // interfaces
+    uint16_t fields_count = reader.ReadWord();
+    mAttributes = readFields(reader, fields_count, mAttributes); // fields
+    uint16_t methods_count = reader.ReadWord();
+    mAttributes = readMethods(reader, methods_count, mAttributes); // methods
+    uint16_t attributes_count = reader.ReadWord();
+    mAttributes = readAttributes(reader, attributes_count, mAttributes);
+}
+
 void ClassFile::scanAnnotation(BytesDecoder& decoder, ClassFileAnalyzer& analyzer)
 {
     int i;
@@ -422,85 +496,6 @@ void ClassFile::findDepsInFile(const char* target, ClassFileAnalyzer& analyzer)
         }
         att = att->next;
     }
-}
-
-FILE * fopenPath(char* path)
-{
-    char* end = rindex(path, '/');
-    if (end) {
-        *end = '\0';
-        mkdirPath(path);
-        *end = '/';
-    }
-    return fopen(path, "w");
-}
-
-bool mkdirPath(char* path)
-{
-    char* slashptr = path;
-    DIR* dyr;
-
-    while ((slashptr = strchr(slashptr + 1, '/'))) {
-        *slashptr = '\0';
-        dyr = opendir(path);
-        if (dyr) {
-            closedir(dyr);
-        } else if (mkdir(path, S_IRWXU) < 0) {
-            *slashptr = '/';
-            return true;
-        }
-        *slashptr = '/';
-        if (slashptr[1] == '\0') {
-            /* Just ignore a trailing slash */
-            return false;
-        }
-    }
-    if (mkdir(path, S_IRWXU) < 0) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-attribute_info* ClassFile::readAttributeInfo(FileReader& reader, attribute_info* atts)
-{
-    uint16_t attribute_name_index = reader.ReadWord();
-    long attribute_length = reader.ReadLong();
-    uint8_t* info = reader.ReadByteArray(attribute_length);
-
-    return new attribute_info(attribute_name_index, attribute_length, info, atts);
-}
-
-attribute_info* ClassFile::readAttributes(FileReader& reader, int count, attribute_info* atts)
-{
-    for (int i=0; i<count; ++i)
-        atts = readAttributeInfo(reader, atts);
-    return atts;
-}
-
-ClassFile::ClassFile(const char* infilename)
-: mConstantPoolCount(0)
-, mConstantPool(0)
-, mAttributes(0)
-{
-    FileReader reader(infilename);
-
-    reader.ReadLong(); // magic
-    reader.ReadWord(); // minor_version
-    reader.ReadWord(); // major_version
-    mConstantPoolCount = reader.ReadWord();
-    mConstantPool = readConstantPool(reader, infilename, mConstantPoolCount);
-    reader.ReadWord(); // access_flags
-    reader.ReadWord(); // this_class
-    reader.ReadWord(); // super_class
-    uint16_t interfaces_count = reader.ReadWord();
-    skipWordArray(reader, interfaces_count); // interfaces
-    uint16_t fields_count = reader.ReadWord();
-    mAttributes = readFields(reader, fields_count, mAttributes); // fields
-    uint16_t methods_count = reader.ReadWord();
-    mAttributes = readMethods(reader, methods_count, mAttributes); // methods
-    uint16_t attributes_count = reader.ReadWord();
-    mAttributes = readAttributes(reader, attributes_count, mAttributes);
 }
 
 cp_info** ClassFile::readConstantPool(FileReader& reader, const char* filename, int count)
