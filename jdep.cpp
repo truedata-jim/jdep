@@ -69,6 +69,8 @@ struct cp_info {
     cp_info(int _tag) : tag(_tag) {}
 };
 
+cp_info* const kLongTag = ((cp_info *) -1);
+
 struct constant_class_info : public cp_info {
     uint16_t name_index;
 
@@ -138,13 +140,15 @@ public:
     void scanElementValue(BytesDecoder& decoder, ClassFileAnalyzer& analyzer);
 
 private:
+
+    cp_info** readConstantPool(FileReader& reader, const char *filename, int count);
+
+
+private:
     uint16_t mConstantPoolCount;
     cp_info** mConstantPool;
     attribute_info* mAttributes;
 };
-
-#define LONG_TAG ((cp_info *) -1)
-
 
 FILE *fopenPath(char *path);
 bool mkdirPath(char *path);
@@ -502,14 +506,14 @@ ClassFile::ClassFile(const char* infilename)
     mAttributes = readAttributes(reader, attributes_count, mAttributes);
 }
 
-cp_info** readConstantPool(FileReader& reader, const char *filename, int count)
+cp_info** ClassFile::readConstantPool(FileReader& reader, const char *filename, int count)
 {
     cp_info** result = new cp_info*[count];
     int i;
     result[0] = NULL;
     for (i=1; i<count; ++i) {
         result[i] = readConstantPoolInfo(reader, filename);
-        if (result[i] == LONG_TAG) {
+        if (result[i] == kLongTag) {
             result[i] = NULL;
             result[++i] = NULL;
         }
@@ -555,12 +559,12 @@ cp_info * readConstantPoolInfo(FileReader& reader, const char *filename)
         case CONSTANT_Long:{
             reader.ReadLong(); /* high_bytes */
             reader.ReadLong(); /* low_bytes */
-            return LONG_TAG;
+            return kLongTag;
         }
         case CONSTANT_Double:{
             reader.ReadLong(); /* high_bytes */
             reader.ReadLong(); /* low_bytes */
-            return LONG_TAG;
+            return kLongTag;
         }
         case CONSTANT_NameAndType:{
             reader.ReadWord(); /* name_index */
