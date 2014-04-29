@@ -47,16 +47,36 @@ $(BIN_DIR)/touchp: touchp.sh
 clean:
 	rm -rf $(BIN_DIR)/jdep $(BIN_DIR)/touchp
 
-DEVROOT = badger_exp
-
 EXCLUDES = -e org.springframework
 
 test: jdep
 	rm -rf testdata/deps/*
 	rm -rf testdata/origdeps/*
-	jdep $(EXCLUDES) -d testdata/deps -c $(DEVROOT)/test-classes -j $(DEVROOT)/server/test \
-		$(DEVROOT)/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
-	origjdep $(EXCLUDES) -d testdata/origdeps -c $(DEVROOT)/test-classes -j $(DEVROOT)/server/test \
-		$(DEVROOT)/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
+	jdep $(EXCLUDES) -d testdata/deps -c badger_exp/test-classes -j badger_exp/server/test \
+		badger_exp/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
+	origjdep $(EXCLUDES) -d testdata/origdeps -c badger_exp/test-classes -j badger_exp/server/test \
+		badger_exp/test-classes/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.class
 	diff -q testdata/deps/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.d \
 	        testdata/origdeps/com/redsealsys/srm/server/analysis/AbstractTestByConfigFile.d
+
+	jdep $(EXCLUDES) -d testdata/deps -c badger_exp/server/classes -j badger_exp/server/src \
+		badger_exp/server/classes/com/redsealsys/srm/server/analysis/NetmapWorker.class
+	origjdep $(EXCLUDES) -d testdata/origdeps -c badger_exp/server/classes -j badger_exp/server/src \
+		badger_exp/server/classes/com/redsealsys/srm/server/analysis/NetmapWorker.class
+	diff -q testdata/deps/com/redsealsys/srm/server/analysis/NetmapWorker.d \
+	        testdata/origdeps/com/redsealsys/srm/server/analysis/NetmapWorker.d
+
+	jdep $(EXCLUDES) -d testdata/deps -c badger_exp/server/classes -j badger_exp/server/src \
+		badger_exp/server/classes/com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow.class
+	origjdep $(EXCLUDES) -d testdata/origdeps -c badger_exp/server/classes -j badger_exp/server/src \
+		badger_exp/server/classes/com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow.class
+	diff -q testdata/deps/com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow.d \
+	        testdata/origdeps/com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow.d
+
+
+
+
+
+
+
+
