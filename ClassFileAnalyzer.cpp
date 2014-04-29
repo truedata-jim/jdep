@@ -3,6 +3,7 @@
 #include "ClassFileAnalyzer.h"
 #include "ClassFile.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
@@ -59,35 +60,49 @@ bool ClassFileAnalyzer::addDep(const char* name)
     return before != mDeps.size();
 }
 
-void ClassFileAnalyzer::analyzeClassFile(char* name)
+
+string ClassFileAnalyzer::FullClassPathToPackageAndName(const string& fullClassPath) const
 {
-    FILE* outfyle;
+    // Initialize our result to the fullClassPath
+    string packageAndName(fullClassPath);
+
+    // We must have a class file, i.e. a .class suffix
+    const string suffix(".class");
+    const size_t sufLen = suffix.length();
+    size_t packNameLen = packageAndName.length();
+    assert(packageAndName.substr(packNameLen-sufLen) == suffix);
+
+    // Now lop off the suffix
+    packageAndName.resize(packNameLen-sufLen);
+
+    // The fullClassPath must begin with the class root path
+    const size_t rootLen = mClassRoot.length();
+    assert(packageAndName.substr(0, rootLen) == mClassRoot);
+
+    // Now remove the root path
+    packageAndName = packageAndName.substr(rootLen);
+
+    // packageAndName is now {packagepath}/{classname}, e.g:
+    // com/redsealsys/srm/server/analysis/compactTree/CompactTreeTrafficFlow
+    return packageAndName;
+}
+
+void ClassFileAnalyzer::analyzeClassFile(const string& fullClassPath)
+{
+    mDeps.clear();
+    mPackageAndName = FullClassPathToPackageAndName(fullClassPath);
+    findDeps(mPackageAndName);
+}
+
+void ClassFileAnalyzer::WriteDependencyFile() const
+{
+    const char* name = mPackageAndName.c_str();
     char outfilename[1000];
-
-    char* match = strstr(name, ".class");
-    if (match && strlen(match) == 6 /* strlen(".class") */)
-    {
-        /* Chop off the trailing ".class" if it's there */
-        *match = '\0';
-    }
-
-    if (mClassRoot != "")
-    {
-        const char* root = mClassRoot.c_str();
-        if (strncmp(name, root, mClassRoot.length()))
-        {
-            fprintf(stderr, "%s.class does not match class root path %s\n",
-                    name, root);
-            exit(1);
-        }
-        name += mClassRoot.length();
-    }
-
-    findDeps(name);
-
     snprintf(outfilename, sizeof(outfilename), "%s%s.d", mDepRoot.c_str(), name);
-    outfyle = fopenPath(outfilename);
-    if (outfyle)
+    FILE* outfyle = fopenPath(outfilename);
+    if (!outfyle)
+        fprintf(stderr, "unable to open output file %s", outfilename);
+    else
     {
         fprintf(outfyle, "%s%s.class: \\\n", mClassRoot.c_str(), name);
         for (StringSet::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
@@ -99,8 +114,6 @@ void ClassFileAnalyzer::analyzeClassFile(char* name)
         fprintf(outfyle, "\n");
         fclose(outfyle);
     }
-    else
-        fprintf(stderr, "unable to open output file %s", outfilename);
 }
 
 string ClassFileAnalyzer::PackageToPath(const string& name)
@@ -112,8 +125,9 @@ string ClassFileAnalyzer::PackageToPath(const string& name)
     return pathName;
 }
 
-void ClassFileAnalyzer::findDeps(const char* name)
+void ClassFileAnalyzer::findDeps(const string& packageAndName)
 {
+    const char* name = packageAndName.c_str();
     fprintf(stderr, "Analyzing %s\n", name);
     char infilename[1000];
     snprintf(infilename, sizeof(infilename), "%s%s.class", mClassRoot.c_str(), name);

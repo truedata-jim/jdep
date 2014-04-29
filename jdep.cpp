@@ -132,6 +132,7 @@ int main(int argc, char* argv[])
             }
 
             analyzer.analyzeClassFile(argv[i]);
+            analyzer.WriteDependencyFile();
         }
     }
     exit(0);

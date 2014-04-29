@@ -13,7 +13,8 @@ class ClassFileAnalyzer
 public:
     ClassFileAnalyzer() {}
 
-    void analyzeClassFile(char* name);
+    void analyzeClassFile(const string& fullClassPath);
+    void WriteDependencyFile() const;
 
     void includePackage(const string& name)
     {
@@ -31,7 +32,7 @@ public:
 
     bool isIncludedClass(const string& name) const;
 
-    void findDeps(const char* name);
+    void findDeps(const string& packageAndName);
 
     void SetJavaRoot(const string& root)
     {
@@ -45,6 +46,11 @@ public:
     {
         mDepRoot = SavePath(root);
     }
+
+private:
+
+    string FullClassPathToPackageAndName(const string& fullClassPath) const;
+
 
 private:
     typedef set<string> StringSet;
@@ -63,12 +69,14 @@ private:
     }
 
 private:
-    StringSet mDeps;
     StringSet mExcludedPackages;
     StringSet mIncludedPackages;
 
     string mJavaRoot;
     string mClassRoot;
     string mDepRoot;
+
+    string    mPackageAndName;
+    StringSet mDeps;
 };
 
