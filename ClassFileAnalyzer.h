@@ -50,6 +50,8 @@ public:
 
     void SetFormat(const string& format);
 
+    void MergeOutput() { mMergeOutput = true; }
+
 private:
 
     void WriteDependencyFile(FILE* outFile) const;
@@ -83,6 +85,7 @@ private:
     string mDepRoot;
 
     string mFormat;
+    bool   mMergeOutput;
 
     string    mPackageAndName;
     StringSet mDeps;

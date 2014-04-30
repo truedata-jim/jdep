@@ -59,6 +59,7 @@ const string gTabFormat("tab");
 ClassFileAnalyzer::ClassFileAnalyzer()
 {
     mFormat.assign(gDepFormat);
+    mMergeOutput = false;
 }
 
 void ClassFileAnalyzer::SetFormat(const string& format)
@@ -76,14 +77,20 @@ void ClassFileAnalyzer::SetFormat(const string& format)
 
 void ClassFileAnalyzer::WriteOutput() const
 {
-    const char* name = mPackageAndName.c_str();
-    char outfilename[1000];
-    snprintf(outfilename, sizeof(outfilename), "%s%s.%s", mDepRoot.c_str(), name, mFormat.c_str());
-    FILE* outFile = fopenPath(outfilename);
-    if (!outFile)
+    FILE* outFile = 0;
+    if (mMergeOutput)
+        outFile = stdout;
+    else
     {
-        fprintf(stderr, "unable to open output file %s", outfilename);
-        exit(1);
+        const char* name = mPackageAndName.c_str();
+        char outfilename[1000];
+        snprintf(outfilename, sizeof(outfilename), "%s%s.%s", mDepRoot.c_str(), name, mFormat.c_str());
+        outFile = fopenPath(outfilename);
+        if (!outFile)
+        {
+            fprintf(stderr, "unable to open output file %s", outfilename);
+            exit(1);
+        }
     }
 
     if (mFormat == gDepFormat)
@@ -91,7 +98,8 @@ void ClassFileAnalyzer::WriteOutput() const
     else if (mFormat == gTabFormat)
         WriteTabularOutput(outFile);
 
-    fclose(outFile);
+    if (!mMergeOutput)
+        fclose(outFile);
 }
 
 void ClassFileAnalyzer::WriteDependencyFile(FILE* outFile) const

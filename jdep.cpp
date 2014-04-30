@@ -56,7 +56,7 @@ void ParseArgs(int& argc, char**& argv, ClassFileAnalyzer& analyzer)
     bool excludeLibraryPackages = true;
     while (true)
     {
-        int c = getopt(argc, argv, "ae:i:c:d:j:f:");
+        int c = getopt(argc, argv, "ae:i:c:d:j:f:m");
         if (c == -1)
             break;
 
@@ -95,6 +95,11 @@ void ParseArgs(int& argc, char**& argv, ClassFileAnalyzer& analyzer)
             case 'f':
             {
                 analyzer.SetFormat(optarg);
+                break;
+            }
+            case 'm':
+            {
+                analyzer.MergeOutput();
                 break;
             }
             default:
