@@ -11,10 +11,11 @@ using std::string;
 class ClassFileAnalyzer
 {
 public:
-    ClassFileAnalyzer() {}
+    ClassFileAnalyzer();
 
     void analyzeClassFile(const string& fullClassPath);
-    void WriteDependencyFile() const;
+
+    void WriteOutput() const;
 
     void includePackage(const string& name)
     {
@@ -47,7 +48,12 @@ public:
         mDepRoot = SavePath(root);
     }
 
+    void SetFormat(const string& format);
+
 private:
+
+    void WriteDependencyFile(FILE* outFile) const;
+    void WriteTabularOutput(FILE* outFile) const;
 
     string FullClassPathToPackageAndName(const string& fullClassPath) const;
 
@@ -75,6 +81,8 @@ private:
     string mJavaRoot;
     string mClassRoot;
     string mDepRoot;
+
+    string mFormat;
 
     string    mPackageAndName;
     StringSet mDeps;

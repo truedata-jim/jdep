@@ -53,6 +53,71 @@ bool mkdirPath(char* path)
         return false;
 }
 
+const string gDepFormat("d");
+const string gTabFormat("tab");
+
+ClassFileAnalyzer::ClassFileAnalyzer()
+{
+    mFormat.assign(gDepFormat);
+}
+
+void ClassFileAnalyzer::SetFormat(const string& format)
+{
+    if (format == gDepFormat)
+        mFormat.assign(format);
+    else if (format == gTabFormat)
+        mFormat.assign(format);
+    else
+    {
+        fprintf(stderr, "Format %s unrecognized.\n", format.c_str());
+        exit(1);
+    }
+}
+
+void ClassFileAnalyzer::WriteOutput() const
+{
+    const char* name = mPackageAndName.c_str();
+    char outfilename[1000];
+    snprintf(outfilename, sizeof(outfilename), "%s%s.%s", mDepRoot.c_str(), name, mFormat.c_str());
+    FILE* outFile = fopenPath(outfilename);
+    if (!outFile)
+    {
+        fprintf(stderr, "unable to open output file %s", outfilename);
+        exit(1);
+    }
+
+    if (mFormat == gDepFormat)
+        WriteDependencyFile(outFile);
+    else if (mFormat == gTabFormat)
+        WriteTabularOutput(outFile);
+
+    fclose(outFile);
+}
+
+void ClassFileAnalyzer::WriteDependencyFile(FILE* outFile) const
+{
+    const char* name = mPackageAndName.c_str();
+    fprintf(outFile, "%s%s.class: \\\n", mClassRoot.c_str(), name);
+    for (StringSet::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
+    {
+        const char* dep = it->c_str();
+        if (index(dep, '$') == NULL)
+            fprintf(outFile, "  %s%s.java \\\n", mJavaRoot.c_str(), dep);
+    }
+    fprintf(outFile, "\n");
+}
+
+void ClassFileAnalyzer::WriteTabularOutput(FILE* outFile) const
+{
+    const char* name = mPackageAndName.c_str();
+    for (StringSet::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
+    {
+        const char* dep = it->c_str();
+        if (index(dep, '$') == NULL)
+            fprintf(outFile, "%s\t%s\n", name, dep);
+    }
+}
+
 bool ClassFileAnalyzer::addDep(const char* name)
 {
     int before = mDeps.size();
@@ -92,28 +157,6 @@ void ClassFileAnalyzer::analyzeClassFile(const string& fullClassPath)
     mDeps.clear();
     mPackageAndName = FullClassPathToPackageAndName(fullClassPath);
     findDeps(mPackageAndName);
-}
-
-void ClassFileAnalyzer::WriteDependencyFile() const
-{
-    const char* name = mPackageAndName.c_str();
-    char outfilename[1000];
-    snprintf(outfilename, sizeof(outfilename), "%s%s.d", mDepRoot.c_str(), name);
-    FILE* outfyle = fopenPath(outfilename);
-    if (!outfyle)
-        fprintf(stderr, "unable to open output file %s", outfilename);
-    else
-    {
-        fprintf(outfyle, "%s%s.class: \\\n", mClassRoot.c_str(), name);
-        for (StringSet::iterator it=mDeps.begin(); it!=mDeps.end(); ++it)
-        {
-            const char* dep = it->c_str();
-            if (index(dep, '$') == NULL)
-                fprintf(outfyle, "  %s%s.java \\\n", mJavaRoot.c_str(), dep);
-        }
-        fprintf(outfyle, "\n");
-        fclose(outfyle);
-    }
 }
 
 string ClassFileAnalyzer::PackageToPath(const string& name)
